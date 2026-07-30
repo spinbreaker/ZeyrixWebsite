@@ -1,26 +1,102 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  /* PrimaryDark */
+  --color-primary: #FFD600;
+  --color-primary-hover: #FFE040;
+  --color-primary-active: #FFC400;
+  --color-primary-surface: #241E0A;
+  --color-primary-outline: #987500;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Dark */
+  --color-background: #121212;
+  --color-surface: #1A1A1C;
+  --color-elevated: #232326;
+  --color-border: #343438;
+  --color-foreground-muted: #8A8A92;
+  --color-foreground-secondary: #DFDFDF;
+  --color-foreground: #FAFAFA;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+  /* Font Families */
+  --font-display-en: "Anton SC", system-ui, sans-serif;
+  --font-display-ru: "Oswald", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Display */
+  --text-display: clamp(28px, 23px + 1.33vw, 40px);
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 400;
+
+  /* H1 */
+  --text-h1: clamp(24px, 20.7px + 0.88vw, 32px);
+  --text-h1--line-height: 1.2;
+  --text-h1--letter-spacing: -0.02em;
+  --text-h1--font-weight: 600;
+
+  /* H2 */
+  --text-h2: clamp(20px, 18.3px + 0.44vw, 24px);
+  --text-h2--line-height: 1.25;
+  --text-h2--letter-spacing: -0.015em;
+  --text-h2--font-weight: 600;
+
+  /* H3 */
+  --text-h3: clamp(17px, 15.8px + 0.33vw, 20px);
+  --text-h3--line-height: 1.3;
+  --text-h3--letter-spacing: -0.01em;
+  --text-h3--font-weight: 500;
+
+  /* H4 */
+  --text-h4: 15px;
+  --text-h4--line-height: 1.4;
+  --text-h4--letter-spacing: 0em;
+  --text-h4--font-weight: 600;
+
+  /* Body Large */
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 1.7;
+  --text-body-lg--letter-spacing: 0em;
+  --text-body-lg--font-weight: 400;
+
+  /* Body */
+  --text-body: 15px;
+  --text-body--line-height: 1.65;
+  --text-body--letter-spacing: 0em;
+  --text-body--font-weight: 400;
+
+  /* Body Small */
+  --text-body-sm: 13px;
+  --text-body-sm--line-height: 1.6;
+  --text-body-sm--letter-spacing: 0em;
+  --text-body-sm--font-weight: 400;
+
+  /* Label */
+  --text-label: 13px;
+  --text-label--line-height: 1.4;
+  --text-label--letter-spacing: 0.03em;
+  --text-label--font-weight: 500;
+
+  /* Caption */
+  --text-caption: 12px;
+  --text-caption--line-height: 1.5;
+  --text-caption--letter-spacing: 0.01em;
+  --text-caption--font-weight: 400;
+
+  /* Overline */
+  --text-overline: 11px;
+  --text-overline--line-height: 1.4;
+  --text-overline--letter-spacing: 0.08em;
+  --text-overline--font-weight: 600;
+
+  /* Button */
+  --text-btn: 15px;
+  --text-btn--line-height: 1;
+  --text-btn--letter-spacing: 0.01em;
+  --text-btn--font-weight: 500;
+
+  /* Nav */
+  --text-nav: 14px;
+  --text-nav--line-height: 1;
+  --text-nav--letter-spacing: 0em;
+  --text-nav--font-weight: 500;
 }
