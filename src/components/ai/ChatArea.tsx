@@ -24,7 +24,7 @@ function MessageAttachment({ type, name, size, url }: Attachment) {
                 <img
                     src={url}
                     alt={name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover rounded-lg"
                 />
             ) : (
 
@@ -116,7 +116,7 @@ export function ChatArea() {
     return (
         <>
         {messages.length === 0 ? (
-            <div className="bg-background w-full h-full flex flex-col justify-center items-center gap-8 px-6">
+            <div className="w-full h-full flex flex-col justify-center items-center gap-8 px-6 max-w-190">
                 <div>
                     <SparklesIcon className="text-primary size-12" />
                 </div>
@@ -138,13 +138,17 @@ export function ChatArea() {
                 </div>
             </div>
         ) : (
-            <div className="bg-background w-full h-full flex flex-col justify-start px-6 py-3 gap-3 overflow-y-auto">
-                {messages.map((message) => (
-                    <MessageBubble
-                        key={message.id}
-                        {...message}
-                    />
-                ))}
+            <div className="w-full h-full px-6 overflow-y-auto py-3">
+                <div className="flex justify-center">
+                    <div className="max-w-190 w-full flex flex-col gap-3 py-3">
+                        {messages.map((message) => (
+                            <MessageBubble
+                                key={message.id}
+                                {...message}
+                            />
+                        ))}
+                    </div>
+                </div>
             </div>
         )}
         </>

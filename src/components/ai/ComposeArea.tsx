@@ -14,8 +14,8 @@ export function ComposeArea() {
     }
 
     return (
-        <div className="bg-background px-6 pb-3 w-full h-fit">
-            <div className="bg-background border border-border rounded-2xl px-4 py-3 gap-2">
+        <div className="bg-background px-6 pb-3 w-full h-fit flex flex-col items-center">
+            <div className="bg-background border border-border rounded-2xl px-4 py-3 gap-2 max-w-190 w-full">
                 <textarea
                     ref={textareaRef}
                     onChange={handleChange}
@@ -39,7 +39,7 @@ export function ComposeArea() {
                     </div>
                 </div>
             </div>
-            <p className="text-foreground-muted font-sans text-caption">
+            <p className="text-foreground-muted font-sans text-caption max-w-190 w-full">
                 Please verify AI-provided information before making decisions or payments.
             </p>
         </div>

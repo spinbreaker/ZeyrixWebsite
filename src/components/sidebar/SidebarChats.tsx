@@ -16,10 +16,10 @@ type GroupedChats = {
 
 function AIChat({ name }: Chat) {
     return (
-        <div className="flex flex-row justify-between pl-4 pr-1 py-1.5 items-center w-full h-fit rounded-lg">
+        <div className="flex flex-row justify-between pl-1 py-1.5 items-center w-full h-fit rounded-lg">
             <p className="font-sans text-body-sm text-foreground-secondary truncate">{name}</p>
-            <div className="p-2 w-fit">
-                <DotsIcon className="text-foreground-muted size-4" />
+            <div className="p-2 w-fit lg:hidden">
+                <DotsIcon className="text-foreground size-3" />
             </div>
         </div>
     );
@@ -27,7 +27,7 @@ function AIChat({ name }: Chat) {
 
 function GroupOfChats({ name, chats }: GroupProps) {
     return (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col">
             <p className="font-sans text-caption text-foreground-muted">{name}</p>
             <div className="flex flex-col">
                 {chats.map((chat) => (
@@ -92,7 +92,7 @@ export function SidebarChats() {
     const { todayChats, yesterdayChats, lastDaysChats, oldChats } = groupChats(chats)
 
     return (
-        <div className="flex-1 overflow-y-auto px-6">
+        <div className="flex-1 overflow-y-auto px-6 pt-3 flex flex-col gap-3">
             <GroupOfChats name="Today" chats={todayChats} />
             <GroupOfChats name="Yesterday" chats={yesterdayChats} />
             <GroupOfChats name="Last 7 days" chats={lastDaysChats} />
