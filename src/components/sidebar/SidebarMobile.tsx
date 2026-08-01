@@ -1,0 +1,42 @@
+import { SidebarHeader } from "./SidebarHeader";
+import { SidebarChats } from "./SidebarChats";
+import { SidebarFooter } from "./SidebarFooter";
+
+type SidebarProps = {
+    open: boolean;
+    onClose: () => void;
+    onExited: () => void;
+};
+
+export function SidebarMobile({ open, onClose, onExited }: SidebarProps) {
+    return (
+        <div
+            className={`fixed inset-0 z-50 transition-opacity duration-300 ease-out motion-reduce:transition-none ${open ? "opacity-100" : "opacity-0"}`}
+            onTransitionEnd={(event) => {
+                if (event.target !== event.currentTarget || open) {
+                    return;
+                }
+
+                onExited();
+            }}
+        >
+            <div
+                className={`absolute inset-0 bg-black/50 transition-opacity duration-150 ease-out motion-reduce:transition-none ${open ? "opacity-100" : "opacity-0"}`}
+                onClick={onClose}
+            />
+
+            <aside
+                className={`
+                    absolute left-0 top-0 h-screen w-65 bg-background flex flex-col transform-gpu
+                    transition-transform duration-150 ease-out motion-reduce:transition-none ${open ? "translate-x-0" : "-translate-x-full"}
+                `}
+            >
+                <SidebarHeader onClose={onClose} />
+                <div className="flex-1 flex flex-col min-h-0">
+                    <SidebarChats />
+                    <SidebarFooter />
+                </div>
+            </aside>
+        </div>
+    );
+}
