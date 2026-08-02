@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Anton_SC, Oswald } from "next/font/google";
 import "./globals.css";
+import AuthGate from "@/src/components/auth/AuthGate";
+import { ConnectionProvider } from "@/src/components/auth/ConnectionContext";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -34,7 +36,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru" className={`${inter.variable} ${antonSC.variable} ${oswald.variable}`}>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased bg-background text-foreground">
+        <ConnectionProvider>
+          <AuthGate>{children}</AuthGate>
+        </ConnectionProvider>
+      </body>
     </html>
   );
 }
