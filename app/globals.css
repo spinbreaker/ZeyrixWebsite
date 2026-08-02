@@ -17,6 +17,12 @@
   --color-foreground-secondary: #DFDFDF;
   --color-foreground: #FAFAFA;
 
+  /* Semantic */
+  --color-error: #EF4444;
+  --color-warning: #F59E0B;
+  --color-success: #22C55E;
+  --color-info: #3B82F6;
+
   /* Font Families */
   --font-display-en: "Anton SC", system-ui, sans-serif;
   --font-display-ru: "Oswald", system-ui, sans-serif;
