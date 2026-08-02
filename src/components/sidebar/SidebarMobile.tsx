@@ -1,14 +1,16 @@
 import { SidebarHeader } from "./SidebarHeader";
 import { SidebarChats } from "./SidebarChats";
 import { SidebarFooter } from "./SidebarFooter";
+import { Chat } from "@/src/types/ai";
 
 type SidebarProps = {
     open: boolean;
     onClose: () => void;
     onExited: () => void;
+    chats: Chat[];
 };
 
-export function SidebarMobile({ open, onClose, onExited }: SidebarProps) {
+export function SidebarMobile({ open, onClose, onExited, chats }: SidebarProps) {
     return (
         <div
             className={`fixed inset-0 z-50 transition-opacity duration-300 ease-out motion-reduce:transition-none ${open ? "opacity-100" : "opacity-0"}`}
@@ -33,7 +35,7 @@ export function SidebarMobile({ open, onClose, onExited }: SidebarProps) {
             >
                 <SidebarHeader onClose={onClose} />
                 <div className="flex-1 flex flex-col min-h-0">
-                    <SidebarChats />
+                    <SidebarChats chats={chats} />
                     <SidebarFooter />
                 </div>
             </aside>

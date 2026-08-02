@@ -1,6 +1,9 @@
+"use client";
+
 import DotsIcon from "@/src/icons/dots.svg";
 import { Chat } from "@/src/types/ai";
-import { getChats } from "@/src/hooks/getChats";
+import { useChats } from "@/src/hooks/useChats";
+import { useRouter } from "next/navigation";
 
 type GroupProps = {
     name: string;
@@ -14,14 +17,29 @@ type GroupedChats = {
     oldChats: Chat[];
 };
 
-function AIChat({ name }: Chat) {
+function AIChat({ id, name }: Chat) {
+    const router = useRouter();
+
     return (
-        <div className="flex flex-row justify-between pl-1 py-1.5 items-center w-full h-fit rounded-lg">
+        <button 
+            className="
+                group
+                flex flex-row justify-between pl-2 py-1.5 items-center w-full h-fit rounded-lg
+                hover:cursor-pointer hover:bg-elevated
+            "
+            onClick={() => router.push(`/chat/${id}`, { scroll: false })}
+        >
             <p className="font-sans text-body-sm text-foreground-secondary truncate">{name}</p>
-            <div className="p-2 w-fit lg:hidden">
+            <span 
+                className="p-2 w-fit lg:opacity-0 group-hover:opacity-100"
+                onClick={(e) => {
+                    e.stopPropagation();
+
+                }}
+            >
                 <DotsIcon className="text-foreground size-3" />
-            </div>
-        </div>
+            </span>
+        </button>
     );
 }
 
@@ -65,7 +83,7 @@ function groupChats(chats: Chat[]): GroupedChats {
     const oldChats: Chat[] = [];
 
     for (const chat of chats) {
-        const createdAt = new Date(chat.createdAt);
+        const createdAt = new Date(chat.updatedAt);
 
         if (createdAt >= todayStart) {
             todayChats.push(chat);
@@ -86,8 +104,14 @@ function groupChats(chats: Chat[]): GroupedChats {
     };
 }
 
-export function SidebarChats() {
-    const { chats } = getChats();
+export function SidebarChats({ chats }: { chats: Chat[] }) {
+    if (!chats) {
+        return (
+        <div className="flex-1 overflow-y-auto px-6 pt-3 flex flex-col gap-3">
+            <p className="text-body text-error">Failed to get the chats</p>
+        </div>
+        );
+    }
 
     const { todayChats, yesterdayChats, lastDaysChats, oldChats } = groupChats(chats)
 
