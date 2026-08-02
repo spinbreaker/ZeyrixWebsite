@@ -1,11 +1,11 @@
 "use client";
-import { useChat } from "@/src/hooks/useChat";
 import SparklesIcon from "@/src/icons/sparkles.svg";
 import CopyIcon from "@/src/icons/copy.svg";
 import LikeIcon from "@/src/icons/like.svg";
 import CloseIcon from "@/src/icons/close.svg";
 import FileIcon from "@/src/icons/file.svg";
 import { AITag, Attachment, Message } from "@/src/types/ai";
+import { useConnection } from "../auth/ConnectionContext";
 
 function AITagCard({ text }: AITag) {
     return (
@@ -42,7 +42,7 @@ function MessageAttachment({ type, name, size, url }: Attachment) {
     );
 }
 
-function MessageBubble({ role, text, attachments, time }: Message) {
+function MessageBubble({ role, text, attachments, createdAt }: Message) {
     switch (role) {
         case "user":
             return (
@@ -66,7 +66,7 @@ function MessageBubble({ role, text, attachments, time }: Message) {
                         </p>
 
                         <p className="mt-1 text-right font-sans text-caption text-background/70">
-                            {time}
+                            {createdAt}
                         </p>
                     </div>
                 </div>
@@ -101,7 +101,7 @@ function MessageBubble({ role, text, attachments, time }: Message) {
                             </div>
 
                             <p className="shrink-0 font-sans text-caption text-foreground-muted">
-                                {time}
+                                {createdAt}
                             </p>
                         </div>
                     </div>
@@ -110,16 +110,11 @@ function MessageBubble({ role, text, attachments, time }: Message) {
     }
 }
 
-export function ChatArea() {
-    const { messages, sendMessage } = useChat();
-
+function EmptyChat() {
     return (
-        <>
-        {messages.length === 0 ? (
-            <div className="w-full h-full flex flex-col justify-center items-center gap-8 px-6 max-w-190">
-                <div>
-                    <SparklesIcon className="text-primary size-12" />
-                </div>
+        <div className="w-full h-full flex justify-center items-center px-6">
+            <div className="flex flex-col justify-center items-center gap-8 max-w-190">
+                <SparklesIcon className="text-primary size-12" />
 
                 <div className="flex flex-col items-center gap-2">
                     <h2 className="text-foreground font-sans text-h2 text-center">
@@ -137,20 +132,41 @@ export function ChatArea() {
                     <AITagCard text="Can you integrate with my existing systems?" />
                 </div>
             </div>
-        ) : (
-            <div className="w-full h-full px-6 overflow-y-auto py-3">
-                <div className="flex justify-center">
-                    <div className="max-w-190 w-full flex flex-col gap-3 py-3">
-                        {messages.map((message) => (
-                            <MessageBubble
-                                key={message.id}
-                                {...message}
-                            />
-                        ))}
-                    </div>
+        </div>
+    );
+}
+
+type ChatAreaProps = {
+  chatId?: string,
+  loading: boolean,
+  messages: Message[],
+  error: string | null,
+}
+
+export function ChatArea({ chatId, loading, messages }: ChatAreaProps) {
+    const { state } = useConnection();
+    const isConnectionLoading = state !== "ready";
+
+    if (isConnectionLoading || loading) {
+        return <div className="w-full h-full flex justify-center items-center px-6"></div>;
+    }
+
+    if (messages.length === 0) {
+        return <EmptyChat />
+    }
+
+    return (
+        <div className="w-full h-full px-6 overflow-y-auto py-3">
+            <div className="flex justify-center">
+                <div className="max-w-190 w-full flex flex-col gap-3 py-3">
+                    {messages.map((message) => (
+                        <MessageBubble
+                            key={message.id}
+                            {...message}
+                        />
+                    ))}
                 </div>
             </div>
-        )}
-        </>
+        </div>
     );
 }

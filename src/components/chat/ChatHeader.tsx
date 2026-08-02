@@ -4,8 +4,9 @@ import { useState } from "react";
 import SidebarIcon from "@/src/icons/sidebar.svg";
 import CloseIcon from "@/src/icons/close.svg";
 import { SidebarMobile } from "../sidebar/SidebarMobile";
+import { Chat } from "@/src/types/ai";
 
-export function ChatHeader() {
+export function ChatHeader({ chats }: { chats: Chat[] }) {
     const [isSideBarOpen, setIsSideBarOpen] = useState(false);
     const [isSidebarMounted, setIsSidebarMounted] = useState(false);
 
@@ -38,6 +39,7 @@ export function ChatHeader() {
                     open={isSideBarOpen}
                     onClose={closeSidebar}
                     onExited={handleSidebarExited}
+                    chats={chats}
                 />
             )}
         </div>
