@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Message, ApiMessage, mapMessage } from "../types/ai";
+import { Message, Attachment } from "../types/chat";
 
 export function useChat(chatId?: string) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -9,7 +9,7 @@ export function useChat(chatId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const previousChatIdRef = useRef<string | undefined>(chatId);
-
+  
   // Загрузка истории при монтировании / смене chatId
   useEffect(() => {
     let cancelled = false; // защита от гонки при быстрой смене chatId
@@ -30,13 +30,14 @@ export function useChat(chatId?: string) {
       }
 
       try {
-        const res = await fetch(`/v1/chats/${chatId}/get_messages`, {
+        const res = await fetch(`/api/chats/${chatId}/get_messages`, {
           credentials: "include",
         });
 
         if (!res.ok) throw new Error(`Backend вернул ${res.status}`);
-        const data: ApiMessage[] = await res.json();
-        if (!cancelled) setMessages(data.map(mapMessage));
+        const data: Message[] = await res.json();
+
+        if (!cancelled) setMessages(data);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Не удалось загрузить сообщения");
@@ -54,13 +55,14 @@ export function useChat(chatId?: string) {
   }, [chatId]);
 
   const sendMessage = useCallback(
-    async (prompt: string, fileIds: string[] = [], newChatId?: string) => {
+    async (prompt: string, attachments: Attachment[] = [], fileIds: string[] = [], newChatId?: string) => {
       const targetChatId = newChatId ?? chatId;
 
       const optimisticUserMsg: Message = {
         id: crypto.randomUUID(),
         role: "user",
         text: prompt,
+        attachments: attachments,
         createdAt: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, optimisticUserMsg]);
@@ -68,7 +70,7 @@ export function useChat(chatId?: string) {
       setError(null);
 
       try {
-        const res = await fetch("/v1/ai/zeyrixai", {
+        const res = await fetch("/api/ai/zeyrixai", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -82,6 +84,7 @@ export function useChat(chatId?: string) {
           id: crypto.randomUUID(),
           role: "assistant",
           text: data.content,
+          attachments: [],
           createdAt: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, aiMsg]);
