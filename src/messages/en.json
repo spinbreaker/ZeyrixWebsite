@@ -1,0 +1,17 @@
+{
+    "chat": {
+        "rename": "Rename",
+        "delete": "Delete",
+        "newChat": "New Chat"
+    },
+    "notFoundMain": {
+        "title": "Page not found",
+        "description": "We are very sorry, but we could not find this page.",
+        "button": "Home"
+    },
+    "notFoundChat": {
+        "title": "Chat not found",
+        "description": "We are very sorry, but it looks like this chat does not exist or has been deleted.",
+        "button": "Chats"
+    }
+}

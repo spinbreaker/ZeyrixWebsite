@@ -1,9 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
-export default function NotFound() {
+export default function ChatNotFound() {
   const router = useRouter();
+  const t = useTranslations("notFoundChat");
 
   return (
     <main className="
@@ -19,25 +21,25 @@ export default function NotFound() {
         </div>
 
         <h2 className="mt-4 text-h2">
-          Page not found
+          {t("title")}
         </h2>
 
         <p className="mt-2 text-body text-foreground-secondary">
-          Нам очень жаль, но мы не смогли найти эту страницу.
+          {t("description")}
         </p>
 
         <button
           className="
             inline-block mt-6
             rounded-lg
-            px-5 py-2
+            px-5 py-3
             bg-primary
             text-background
             hover:cursor-pointer
           "
           onClick={() => router.push("/chat")}
         >
-          На главную
+          {t("button")}
         </button>
       </section>
     </main>

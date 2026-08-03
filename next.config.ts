@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 const nextConfig: NextConfig = {
   turbopack: {
@@ -28,9 +29,10 @@ const nextConfig: NextConfig = {
     const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8000";
 
     return [
-      { source: "/v1/:path*", destination: `${backendUrl}/v1/:path*` },
+      { source: "/api/:path*", destination: `${backendUrl}/v1/:path*` },
     ];
   },
 };
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin();
+export default withNextIntl(nextConfig);
