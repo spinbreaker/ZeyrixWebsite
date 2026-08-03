@@ -1,14 +1,26 @@
 "use client";
 
 import DotsIcon from "@/src/icons/dots.svg";
-import { Chat } from "@/src/types/ai";
-import { useChats } from "@/src/hooks/useChats";
+import { Chat } from "@/src/types/chat";
 import { useRouter } from "next/navigation";
+import RenameIcon from "@/src/icons/rename.svg";
+import DeleteIcon from "@/src/icons/delete.svg";
+import { useState, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 
-type GroupProps = {
+type RenameAndDelete = {
+    renameChat: (chatId: string, newTitle: string) => Promise<undefined>;
+    deleteChat: (chatId: string) => Promise<undefined>;
+}
+
+type GroupOfChatsProps = RenameAndDelete & {
     name: string;
     chats: Chat[];
 };
+
+type SidebarChatsProps = RenameAndDelete & {
+    chats: Chat[];
+}
 
 type GroupedChats = {
     todayChats: Chat[];
@@ -17,33 +29,220 @@ type GroupedChats = {
     oldChats: Chat[];
 };
 
-function AIChat({ id, name }: Chat) {
+type AIChatProps = Chat & RenameAndDelete
+
+function AIChat({ id, name, renameChat, deleteChat }: AIChatProps) {
+    const t = useTranslations("chat");
     const router = useRouter();
 
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isRenaming, setIsRenaming] = useState(false);
+    const [title, setTitle] = useState(name);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const inputRef = useRef<HTMLInputElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const dotsRef = useRef<HTMLSpanElement>(null);
+
+    const startRename = () => {
+        setIsMenuOpen(false);
+        setIsRenaming(true);
+    };
+
+    useEffect(() => {
+        setTitle(name);
+    }, [name]);
+
+    useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            const target = e.target as Node;
+
+            const clickedInsideMenu = menuRef.current?.contains(target);
+            const clickedDots = dotsRef.current?.contains(target);
+            
+            if (clickedInsideMenu || clickedDots) return;
+
+            setIsMenuOpen(false);
+        }
+
+        document.addEventListener("mousedown", handleClickOutside);
+
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (isRenaming) {
+            inputRef.current?.focus();
+            inputRef.current?.select();
+        }
+    }, [isRenaming]);
+
+    const saveRename = async () => {
+        const newTitle = title.trim();
+
+        if (!newTitle || newTitle === name) {
+            setTitle(name);
+            setIsRenaming(false);
+            return;
+        }
+
+        try {
+            await renameChat(id, newTitle);
+
+            setIsRenaming(false);
+        } catch {
+            setTitle(name);
+            setIsRenaming(false);
+        }
+    };
+
+    const cancelRename = () => {
+        setTitle(name);
+        setIsRenaming(false);
+    };
+
+    const handleRenameKeyDown = (
+        e: React.KeyboardEvent<HTMLInputElement>
+    ) => {
+        if (e.key === "Enter") {
+            saveRename();
+        }
+
+        if (e.key === "Escape") {
+            cancelRename();
+        }
+    };
+
     return (
-        <button 
-            className="
-                group
-                flex flex-row justify-between pl-2 py-1.5 items-center w-full h-fit rounded-lg
-                hover:cursor-pointer hover:bg-elevated
-            "
+        <>
+        <button
+            className={`
+                relative group
+                flex flex-row justify-between pl-2 py-1.5 items-center w-full rounded-lg
+                ${!isRenaming && "hover:cursor-pointer hover:bg-elevated"}
+            `}
             onClick={() => router.push(`/chat/${id}`, { scroll: false })}
         >
-            <p className="font-sans text-body-sm text-foreground-secondary truncate">{name}</p>
-            <span 
-                className="p-2 w-fit lg:opacity-0 group-hover:opacity-100"
+            {isRenaming ? (
+                <input
+                    ref={inputRef}
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={handleRenameKeyDown}
+                    onBlur={saveRename}
+                    className="text-body-sm text-foreground-secondary w-full border-none outline-primary outline-1 rounded-lg py-1.5 px-2"
+                />
+            ) : (
+                <p className="truncate text-body-sm text-foreground-secondary">
+                    {title}
+                </p>
+            )}
+            
+            <span
+                className={`
+                    p-2 hover:bg-border rounded-lg
+                    ${isMenuOpen ? "bg-border opacity-100" : "lg:opacity-0 group-hover:opacity-100"}
+                    ${isRenaming && "hidden"}
+                `}
                 onClick={(e) => {
                     e.stopPropagation();
-
+                    e.preventDefault();
+                    setIsMenuOpen((prev) => !prev);
                 }}
+                ref={dotsRef}
             >
                 <DotsIcon className="text-foreground size-3" />
             </span>
+
+            {isMenuOpen && (
+                <div
+                    className="
+                        absolute top-10 right-0 z-50
+                        p-1 bg-elevated border border-border rounded-lg
+                        flex flex-col w-fit h-fit gap-1 cursor-default
+                    "
+                    onClick={(e) => {
+                        e.stopPropagation();
+                    }}
+                    ref={menuRef}
+                >
+                    <span 
+                        className="
+                            flex items-center px-3 py-2 gap-3 hover:bg-border rounded-lg
+                            hover:cursor-pointer
+                        "
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            startRename();
+                        }}
+                    >
+                        <RenameIcon className="text-foreground size-4" />
+                        <p className="text-foreground text-body">
+                            {t("rename")}
+                        </p>
+                    </span>
+
+                    <span 
+                        className="
+                            flex items-center px-3 py-2 gap-3 rounded-lg text-error
+                            hover:bg-error/80 hover:text-foreground hover:cursor-pointer
+                        "
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsMenuOpen(false);
+                            setIsDeleting(true);
+                        }}
+                    >
+                        <DeleteIcon className="size-4" />
+                        <p className="text-body">
+                            {t("delete")}
+                        </p>
+                    </span>
+                </div>
+            )}
         </button>
+        
+        {isDeleting && (
+            <div className="fixed inset-0 flex items-center justify-center bg-black/90 z-999">
+                <div className="bg-surface border-border p-6 rounded-2xl shadow-lg flex flex-col max-w-100 justify-center gap-3">
+                    <h3 className="text-foreground text-h3">Are you sure?</h3>
+                    <p className="text-foreground-secondary text-body">This action is irreversible. The selected chat will be permanently deleted without the possibility of recovery.</p>
+                    <div className="flex flex-row justify-end gap-6">
+                        <button 
+                            className="
+                                border border-border rounded-lg px-5 py-3 text-foreground
+                                hover:bg-elevated hover:cursor-pointer
+                            "
+                            onClick={(e) => {
+                                setIsDeleting(false);
+                            }}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            className="
+                                bg-error/80 text-foreground rounded-lg px-5 py-3
+                                hover:bg-error hover:cursor-pointer
+                            "
+                            onClick={(e) => {
+                                deleteChat(id);
+                                setIsDeleting(false);
+                            }}
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 }
 
-function GroupOfChats({ name, chats }: GroupProps) {
+function GroupOfChats({ name, chats, renameChat, deleteChat }: GroupOfChatsProps) {
     return (
         <div className="flex flex-col">
             <p className="font-sans text-caption text-foreground-muted">{name}</p>
@@ -52,6 +251,8 @@ function GroupOfChats({ name, chats }: GroupProps) {
                     <AIChat
                         key={chat.id}
                         {...chat}
+                        renameChat={renameChat}
+                        deleteChat={deleteChat}
                     />
                 ))}
             </div>
@@ -104,7 +305,7 @@ function groupChats(chats: Chat[]): GroupedChats {
     };
 }
 
-export function SidebarChats({ chats }: { chats: Chat[] }) {
+export function SidebarChats({ chats, deleteChat, renameChat }: SidebarChatsProps) {
     if (!chats) {
         return (
         <div className="flex-1 overflow-y-auto px-6 pt-3 flex flex-col gap-3">
@@ -117,10 +318,10 @@ export function SidebarChats({ chats }: { chats: Chat[] }) {
 
     return (
         <div className="flex-1 overflow-y-auto px-6 pt-3 flex flex-col gap-3">
-            <GroupOfChats name="Today" chats={todayChats} />
-            <GroupOfChats name="Yesterday" chats={yesterdayChats} />
-            <GroupOfChats name="Last 7 days" chats={lastDaysChats} />
-            <GroupOfChats name="Older" chats={oldChats} />
+            <GroupOfChats name="Today" chats={todayChats} renameChat={renameChat} deleteChat={deleteChat} />
+            <GroupOfChats name="Yesterday" chats={yesterdayChats} renameChat={renameChat} deleteChat={deleteChat} />
+            <GroupOfChats name="Last 7 days" chats={lastDaysChats} renameChat={renameChat} deleteChat={deleteChat} />
+            <GroupOfChats name="Older" chats={oldChats} renameChat={renameChat} deleteChat={deleteChat} />
         </div>
     );
 }

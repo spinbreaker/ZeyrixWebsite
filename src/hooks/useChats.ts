@@ -1,17 +1,19 @@
-import { Chat, ApiChat, mapChat } from "../types/ai";
+import { Chat, ApiChat, mapChat } from "../types/chat";
 import { useEffect, useState, useCallback } from "react";
 
 export function useChats() {
     const [chats, setChats] = useState<Chat[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function loadChats() {
+            setLoading(true);
             setError(null);
 
             try {
                 const res = await fetch(
-                    "/v1/chats/get_all_chats",
+                    "/api/chats/get_all_chats",
                     {
                         credentials: "include"
                     }
@@ -22,6 +24,8 @@ export function useChats() {
                 setChats(data.map(mapChat));
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Не удалось загрузить чаты");
+            } finally {
+                setLoading(false);
             }
         }
 
@@ -34,7 +38,7 @@ export function useChats() {
 
             try {
                 const res = await fetch(
-                    "/v1/chats/create",
+                    "/api/chats/create",
                     {
                         method: "POST",
                         credentials: "include",
@@ -59,13 +63,61 @@ export function useChats() {
         [],
     );
 
-    async function renameChat() {
+    const renameChat = useCallback(
+        async (chatId: string, newTitle: string): Promise<undefined> => {
+            setError(null);
 
-    }
+            try {
+                const res = await fetch(
+                    "/api/chats/rename",
+                    {
+                        method: "PATCH",
+                        credentials: "include",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ "chatId": chatId, "newTitle": newTitle }),
+                    }
+                );
 
-    async function deleteChat() {
+                if (!res.ok) throw new Error(`Backend вернул ${res.status}`);
+            } catch (err) {
+                const error = err instanceof Error ? err.message : "Не удалось переименовать чат";
 
-    }
+                setError(error);
+                throw err;
+            }
+        },
+        [],
+    );
 
-    return { chats, createChat };
+    const deleteChat = useCallback(
+        async (chatId: string): Promise<undefined> => {
+            setError(null);
+
+            try {
+                const res = await fetch(
+                    "/api/chats/delete",
+                    {
+                        method: "DELETE",
+                        credentials: "include",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ "chatId": chatId }),
+                    }
+                );
+
+                if (!res.ok) throw new Error(`Backend вернул ${res.status}`);
+
+                setChats((prev) => 
+                    prev.filter((chat) => chat.id != chatId)
+                )
+            } catch (err) {
+                const error = err instanceof Error ? err.message : "Не удалось переименовать чат";
+
+                setError(error);
+                throw err;
+            }
+        },
+        [],
+    );
+
+    return { chats, createChat, renameChat, deleteChat, loading };
 }

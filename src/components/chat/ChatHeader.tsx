@@ -4,9 +4,15 @@ import { useState } from "react";
 import SidebarIcon from "@/src/icons/sidebar.svg";
 import CloseIcon from "@/src/icons/close.svg";
 import { SidebarMobile } from "../sidebar/SidebarMobile";
-import { Chat } from "@/src/types/ai";
+import { Chat } from "@/src/types/chat";
 
-export function ChatHeader({ chats }: { chats: Chat[] }) {
+type ChatHeaderProps = {
+    chats: Chat[],
+    renameChat: (chatId: string, newTitle: string) => Promise<undefined>;
+    deleteChat: (chatId: string) => Promise<undefined>;
+}
+
+export function ChatHeader({ chats, renameChat, deleteChat }: ChatHeaderProps) {
     const [isSideBarOpen, setIsSideBarOpen] = useState(false);
     const [isSidebarMounted, setIsSidebarMounted] = useState(false);
 
@@ -40,6 +46,8 @@ export function ChatHeader({ chats }: { chats: Chat[] }) {
                     onClose={closeSidebar}
                     onExited={handleSidebarExited}
                     chats={chats}
+                    renameChat={renameChat}
+                    deleteChat={deleteChat}
                 />
             )}
         </div>

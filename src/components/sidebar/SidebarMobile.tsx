@@ -1,16 +1,18 @@
 import { SidebarHeader } from "./SidebarHeader";
 import { SidebarChats } from "./SidebarChats";
 import { SidebarFooter } from "./SidebarFooter";
-import { Chat } from "@/src/types/ai";
+import { Chat } from "@/src/types/chat";
 
 type SidebarProps = {
     open: boolean;
     onClose: () => void;
     onExited: () => void;
     chats: Chat[];
+    renameChat: (chatId: string, newTitle: string) => Promise<undefined>;
+    deleteChat: (chatId: string) => Promise<undefined>;
 };
 
-export function SidebarMobile({ open, onClose, onExited, chats }: SidebarProps) {
+export function SidebarMobile({ open, onClose, onExited, chats, renameChat, deleteChat }: SidebarProps) {
     return (
         <div
             className={`fixed inset-0 z-50 transition-opacity duration-300 ease-out motion-reduce:transition-none ${open ? "opacity-100" : "opacity-0"}`}
@@ -35,7 +37,7 @@ export function SidebarMobile({ open, onClose, onExited, chats }: SidebarProps) 
             >
                 <SidebarHeader onClose={onClose} />
                 <div className="flex-1 flex flex-col min-h-0">
-                    <SidebarChats chats={chats} />
+                    <SidebarChats chats={chats} renameChat={renameChat} deleteChat={deleteChat} />
                     <SidebarFooter />
                 </div>
             </aside>
