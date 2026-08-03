@@ -3,13 +3,16 @@
 import AttachIcon from "@/src/icons/plus.svg";
 import MicroIcon from "@/src/icons/microphone.svg";
 import SendIcon from "@/src/icons/arrow.svg";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useConnection } from "../auth/ConnectionContext";
 import { useRouter } from "next/navigation";
+import { useFileUpload } from "@/src/hooks/useFileUpload";
+import { AttachmentCard } from "./Attachment";
+import { mapAttachments, Attachment } from "@/src/types/chat";
 
 type ComposeAreaProps = {
   chatId?: string,
-  sendMessage: (prompt: string, fileIds?: string[], newChatId?: string) => Promise<void>,
+  sendMessage: (prompt: string, attachments: Attachment[], fileIds: string[], newChatId?: string) => Promise<void>,
   sending: boolean,
   createChat: (userPrompt: string) => Promise<string>
 }
@@ -18,12 +21,21 @@ export function ComposeArea({ chatId, sendMessage, sending, createChat }: Compos
     const { state } = useConnection();
     const canInteract = state === "ready";
 
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const { attachments, uploadFile, removeAttachment, readyFileIds, isUploading, setAttachments } = useFileUpload();
+
     const [message, setMessage] = useState("");
-    const canSend = message.trim().length > 0 && canInteract && !sending;
+    const canSend = message.trim().length > 0 && canInteract && !sending && !isUploading;
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const router = useRouter();
+
+     function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+        const files = Array.from(e.target.files ?? []);
+        files.forEach(uploadFile);
+        e.target.value = "";
+    }
 
     function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
         const value = e.target.value;
@@ -40,16 +52,21 @@ export function ComposeArea({ chatId, sendMessage, sending, createChat }: Compos
         const text = message;
         setMessage("");
 
+        const tempAttachments = attachments;
+        const attachmentsToSend = attachments.map(mapAttachments);
+        setAttachments([]);
+
         try {
             if (chatId) {
-                await sendMessage(message);
+                await sendMessage(message, attachmentsToSend, readyFileIds);
             } else {
                 const newChatId = await createChat(message);
-                await sendMessage(message, [], newChatId);
+                await sendMessage(message, attachmentsToSend, readyFileIds, newChatId);
                 router.replace(`/chat/${newChatId}`, { scroll: false });
             }
         } catch {
             setMessage(text);
+            setAttachments(tempAttachments);
         }
 
 
@@ -68,7 +85,15 @@ export function ComposeArea({ chatId, sendMessage, sending, createChat }: Compos
 
     return (
         <div className="bg-background px-6 pb-3 w-full h-fit flex flex-col items-center">
-            <div className="bg-background border border-border rounded-2xl px-4 py-3 gap-2 max-w-190 w-full">
+            <div className="bg-background border border-border rounded-2xl px-4 py-3 flex flex-col gap-2 max-w-190 w-full">
+                {attachments.length > 0 && (
+                    <div className="flex max-w-full gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                        {attachments.map((a) => (
+                            <AttachmentCard key={a.localId} attachment={a} onRemove={removeAttachment} />
+                        ))}
+                    </div>
+                )}
+
                 <textarea
                     ref={textareaRef}
                     value={message}
@@ -79,14 +104,29 @@ export function ComposeArea({ chatId, sendMessage, sending, createChat }: Compos
                     rows={1}
                     className="w-full h-fit resize-none bg-transparent outline-none font-sans text-body text-foreground placeholder:text-foreground-muted max-h-50"
                 />
+
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={handleFileSelect}
+                />
+
                 <div className="w-full h-fit flex justify-between">
-                    <button className={`px-3 py-4 ${canInteract && "cursor-pointer"}`} disabled={!canInteract}>
+                    <button 
+                        className={`px-3 py-4 ${canInteract && "cursor-pointer"}`}
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={!canInteract && sending}
+                    >
                         <AttachIcon className="text-foreground-secondary size-4" />
                     </button>
+
                     <div className="flex flex-row items-center gap-3">
                         <button className={`p-3 ${canInteract && "cursor-pointer"}`} disabled={!canInteract}>
                             <MicroIcon className="text-foreground-secondary size-5" />
                         </button>
+
                         <button
                             disabled={!canSend}
                             className={`
