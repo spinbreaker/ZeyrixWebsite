@@ -1,11 +1,8 @@
 "use client";
 import SparklesIcon from "@/src/icons/sparkles.svg";
-import CopyIcon from "@/src/icons/copy.svg";
-import LikeIcon from "@/src/icons/like.svg";
-import CloseIcon from "@/src/icons/close.svg";
-import FileIcon from "@/src/icons/file.svg";
-import { AITag, Attachment, Message } from "@/src/types/ai";
+import { AITag, Message } from "@/src/types/chat";
 import { useConnection } from "../auth/ConnectionContext";
+import { MessageBubble } from "./MessageBubble";
 
 function AITagCard({ text }: AITag) {
     return (
@@ -15,99 +12,6 @@ function AITagCard({ text }: AITag) {
             </p>
         </div>
     );
-}
-
-function MessageAttachment({ type, name, size, url }: Attachment) {
-    return (
-        <div className="bg-elevated rounded-lg w-30 h-30 shrink-0 relative">
-            {type === "image" ? (
-                <img
-                    src={url}
-                    alt={name}
-                    className="w-full h-full object-cover rounded-lg"
-                />
-            ) : (
-
-                <div className="flex flex-col gap-2 px-3 py-2 justify-center items-center w-full h-full">
-                    <FileIcon className="text-foreground size-4" />
-                    <p className="font-sans text-body-sm text-foreground truncate w-full text-center">{name}</p>
-                    <p className="font-sans text-caption text-foreground-muted truncate w-full text-center">{size}</p>
-                </div>
-            )}
-
-            <button className="absolute top-0 right-0 p-2 bg-background/30 rounded-tr-lg">
-                <CloseIcon className="size-3 text-foreground" />
-            </button>
-        </div>
-    );
-}
-
-function MessageBubble({ role, text, attachments, createdAt }: Message) {
-    switch (role) {
-        case "user":
-            return (
-                <div className="flex justify-end">
-                    <div className="bg-primary px-4 py-3 rounded-t-[20px] rounded-bl-[20px] rounded-br-sm max-w-[70%]">
-                        {attachments && attachments.length === 0 ? (
-                            <></>
-                        ) : (
-                            <div className="flex max-w-full gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                                {attachments?.map((attachment) => (
-                                    <MessageAttachment
-                                    key={attachment.id}
-                                        {...attachment}
-                                    />
-                                ))}
-                            </div>
-                        )}
-
-                        <p className="font-sans text-body text-background whitespace-pre-line">
-                            {text}
-                        </p>
-
-                        <p className="mt-1 text-right font-sans text-caption text-background/70">
-                            {createdAt}
-                        </p>
-                    </div>
-                </div>
-            );
-
-        case "assistant":
-            return (
-                <div className="flex justify-start">
-                    <div className="bg-surface border border-border px-4 py-3 rounded-t-[20px] rounded-br-[20px] rounded-bl-sm max-w-[80%]">
-                        {attachments && attachments.length === 0 ? (
-                            <></>
-                        ) : (
-                            <div className="flex max-w-full gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                                {attachments?.map((attachment) => (
-                                    <MessageAttachment
-                                    key={attachment.id}
-                                        {...attachment}
-                                    />
-                                ))}
-                            </div>
-                        )}
-
-                        <p className="font-sans text-body text-foreground whitespace-pre-line">
-                            {text}
-                        </p>
-
-                        <div className="mt-2 flex items-center justify-between gap-4">
-                            <div className="flex gap-4">
-                                <CopyIcon className="text-foreground size-3" />
-                                <LikeIcon className="text-foreground size-3" />
-                                <LikeIcon className="text-foreground size-3 scale-y-[-1]" />
-                            </div>
-
-                            <p className="shrink-0 font-sans text-caption text-foreground-muted">
-                                {createdAt}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            );
-    }
 }
 
 function EmptyChat() {
@@ -143,7 +47,7 @@ type ChatAreaProps = {
   error: string | null,
 }
 
-export function ChatArea({ chatId, loading, messages }: ChatAreaProps) {
+export function ChatArea({ loading, messages }: ChatAreaProps) {
     const { state } = useConnection();
     const isConnectionLoading = state !== "ready";
 

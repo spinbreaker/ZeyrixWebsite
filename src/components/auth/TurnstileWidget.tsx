@@ -61,7 +61,7 @@ export default function TurnstileWidget({ onSuccess }: TurnstileWidgetProps) {
   async function handleToken(token: string) {
     let res: Response;
     try {
-      res = await fetch("/v1/auth/create_account", {
+      res = await fetch("/api/auth/create_account", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

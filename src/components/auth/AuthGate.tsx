@@ -43,7 +43,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   async function checkStatus() {
     let res: Response;
     try {
-      res = await fetch("/v1/auth/status", { credentials: "include" });
+      res = await fetch("/api/auth/status", { credentials: "include" });
     } catch {
       setState("unreachable");
       handleFailure();
