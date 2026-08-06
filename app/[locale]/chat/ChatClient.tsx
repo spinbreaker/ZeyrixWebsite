@@ -11,7 +11,34 @@ export default function ChatClient({
   chatId?: string;
   createChat: (userPrompt: string) => Promise<string>;
 }) {
-  const { messages, loading, error, sending, sendMessage } = useChat(chatId);
+  const { messages, loading, error, sending, sendMessage, applyToolUse, isToolRequestPending } = useChat(chatId);
+  const isEmptyRootChat = !chatId && !loading && messages.length === 0;
+
+  if (isEmptyRootChat) {
+    return (
+      <div className="flex flex-1 min-h-0 flex-col items-center mt-[10dvh] py-8 md:mt-[20dvh]">
+        <div className="w-full max-w-190 flex flex-col items-center gap-[clamp(2rem,5vw,3rem)]">
+          <ChatArea
+            chatId={chatId}
+            messages={messages}
+            loading={loading}
+            error={error}
+            compactEmptyState
+            applyToolUse={applyToolUse}
+          />
+
+          <ComposeArea
+            chatId={chatId}
+            sendMessage={sendMessage}
+            sending={sending}
+            createChat={createChat}
+            isNewChat
+            isToolRequestPending={isToolRequestPending}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">

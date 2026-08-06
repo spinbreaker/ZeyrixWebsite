@@ -55,8 +55,19 @@ export function ChatArea({ loading, messages }: ChatAreaProps) {
         return <div className="w-full h-full flex justify-center items-center px-6"></div>;
     }
 
-    if (messages.length === 0) {
-        return <EmptyChat />
+    if (showEmptyState) {
+        const titles = [
+            t("title1"), t("title2"), t("title3"),
+            t("title4"), t("title5"), t("title6"),
+        ]
+        const randomItem = titles[Math.floor(Math.random() * titles.length)];
+
+        return (
+            <h1 className="font-display-ru text-display text-foreground-secondary text-[clamp(2rem,5vw,3rem)] text-center px-6 max-w-[95vw]">
+                <MainLogo className="inline-block text-[clamp(2rem,5vw,3rem)] shrink-0 text-primary mr-3 align-middle" />
+                {randomItem}
+            </h1>
+        );
     }
 
     return (
