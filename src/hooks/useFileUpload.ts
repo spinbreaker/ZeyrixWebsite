@@ -21,19 +21,8 @@ export function useFileUpload() {
     return file.type.startsWith("image/");
   }
 
-  const uploadFile = useCallback(async (file: File) => {
-    const localId = crypto.randomUUID();
-    const entry: PendingAttachment = {
-      localId,
-      file,
-      status: "uploading",
-      fileId: null,
-      error: null,
-    };
-    setAttachments((prev) => [...prev, entry]);
-
-    try {
-      // Step 1: presign
+  async function uploadFile(file: File): Promise<string> {
+    // Step 1: presign
       const presignRes = await fetch("/api/files/presign", {
         method: "POST",
         credentials: "include",
@@ -67,6 +56,23 @@ export function useFileUpload() {
         body: JSON.stringify({ file_id: fileId }),
       }).catch(() => {});
 
+      return fileId;
+  }
+
+  const addAttachment = useCallback(async (file: File) => {
+    const localId = crypto.randomUUID();
+    const entry: PendingAttachment = {
+      localId,
+      file,
+      status: "uploading",
+      fileId: null,
+      error: null,
+    };
+    setAttachments((prev) => [...prev, entry]);
+
+    try {
+      const fileId = await uploadFile(file);
+
       updateAttachment(localId, { status: "done", fileId });
     } catch (err) {
       updateAttachment(localId, {
@@ -82,5 +88,26 @@ export function useFileUpload() {
 
   const isUploading = attachments.some((a) => a.status === "uploading");
 
-  return { attachments, uploadFile, removeAttachment, readyFileIds, isUploading, setAttachments };
+  const transcribeVoice = useCallback(async (file: File): Promise<string> => {
+    try {
+      const fileId = await uploadFile(file);
+
+      const res = await fetch("/api/ai/transcribe", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: fileId })
+      })
+      if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+
+      const data = await res.json()
+
+      return data.transcribe;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error("Failed to transcribe a file");
+      throw error;
+    }
+  }, []);
+
+  return { attachments, addAttachment, removeAttachment, readyFileIds, isUploading, setAttachments, transcribeVoice };
 }

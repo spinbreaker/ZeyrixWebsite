@@ -50,7 +50,7 @@ export function useChats() {
                 if (!res.ok) throw new Error(`Backend вернул ${res.status}`);
 
                 const data: ApiChat = await res.json();
-                setChats((prev) => [...prev, mapChat(data)]);
+                setChats((prev) => [mapChat(data), ...prev]);
 
                 return data.id;
             } catch (err) {
