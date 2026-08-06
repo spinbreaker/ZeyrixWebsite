@@ -1,5 +1,6 @@
 import SettingsIcon from "@/src/icons/settings.svg";
 import { useSidebar } from "./SidebarContext";
+import { useTranslations } from "next-intl";
 
 type User = {
     id: number;
@@ -7,14 +8,15 @@ type User = {
     avatar: string | null;
 };
 
-const user: User = {
-    id: 1,
-    name: "Guest",
-    avatar: null,
-};
-
 export function SidebarFooter() {
     const { expanded } = useSidebar();
+    const t = useTranslations("sidebarFooter");
+
+    const user: User = {
+        id: 1,
+        name: t("guest"),
+        avatar: null,
+    };
 
     return (
         <div className={`

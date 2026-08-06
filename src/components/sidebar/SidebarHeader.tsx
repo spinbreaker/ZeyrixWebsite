@@ -3,6 +3,7 @@ import SearchIcon from "@/src/icons/search.svg";
 import NewChatIcon from "@/src/icons/redact.svg";
 import { useSidebar } from "./SidebarContext";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 type SidebarProps = {
     onClose?: () => void;
@@ -11,6 +12,7 @@ type SidebarProps = {
 export function SidebarHeader({ onClose }: SidebarProps) {
     const { expanded, toggle } = useSidebar();
     const router = useRouter();
+    const t = useTranslations("sidebarHeader")
 
     return (
         <div className={`
@@ -63,7 +65,7 @@ export function SidebarHeader({ onClose }: SidebarProps) {
                         ${expanded ? "max-w-28 opacity-100 translate-x-0" : "max-w-0 opacity-0 -translate-x-2"}
                         transition-[max-width,opacity,transform] duration-300 ease-out
                     `}>
-                        <p className="font-sans text-btn text-foreground-secondary">New chat</p>
+                        <p className="font-sans text-btn text-foreground-secondary">{t("newChat")}</p>
                     </span>
                 </button>
             </div>

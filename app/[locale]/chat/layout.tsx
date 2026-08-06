@@ -8,18 +8,22 @@ import { SidebarDesktop } from "@/src/components/sidebar/SidebarDesktop";
 import { SidebarChats } from "@/src/components/sidebar/SidebarChats";
 import ChatClient from "./ChatClient";
 import ChatNotFound from "./ChatNotFound";
+import { useConnection } from "@/src/components/auth/ConnectionContext";
 
 export default function ChatLayout({ children }: { children: ReactNode }) {
-	const params = useParams<{ chatId?: string | string[] }>();
 	const { chats, createChat, renameChat, deleteChat, loading } = useChats();
 
+	const { state } = useConnection();
+	const isLoading = state !== "ready" || loading;
+
+	const params = useParams<{ chatId?: string | string[] }>();
 	const chatId = Array.isArray(params.chatId) ? params.chatId[0] : params.chatId;
 
 	const isChatExist = chatId ? chats.some((chat) => chat.id === chatId) : true;
 	
 	return (
 		<>
-		{!isChatExist && !loading ? (
+		{!isChatExist && !isLoading ? (
 			<ChatNotFound />
 		) : (
 			<div className="flex flex-row h-screen w-full">

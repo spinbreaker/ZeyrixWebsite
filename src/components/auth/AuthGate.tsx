@@ -105,7 +105,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         <p className="text-body-sm text-foreground-muted">
           Не удалось подключиться к серверу.
         </p>
-        <button onClick={handleManualRetry} className="text-btn text-primary underline">
+        <button onClick={handleManualRetry} className="text-btn text-primary underline hover:cursor-pointer">
           Повторить
         </button>
       </SplashScreen>

@@ -2,7 +2,7 @@
 
 import DotsIcon from "@/src/icons/dots.svg";
 import { Chat } from "@/src/types/chat";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import RenameIcon from "@/src/icons/rename.svg";
 import DeleteIcon from "@/src/icons/delete.svg";
 import { useState, useRef, useEffect } from "react";
@@ -34,6 +34,9 @@ type AIChatProps = Chat & RenameAndDelete
 function AIChat({ id, name, renameChat, deleteChat }: AIChatProps) {
     const t = useTranslations("chat");
     const router = useRouter();
+    const params = useParams<{ chatId?: string | string[] }>();
+	const currentChatId = Array.isArray(params.chatId) ? params.chatId[0] : params.chatId;
+    const isSelected = currentChatId === id;
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isRenaming, setIsRenaming] = useState(false);
@@ -120,7 +123,8 @@ function AIChat({ id, name, renameChat, deleteChat }: AIChatProps) {
         <button
             className={`
                 relative group
-                flex flex-row justify-between pl-2 py-1.5 items-center w-full rounded-lg
+                flex flex-row justify-between pl-2 py-1.5 items-center w-full rounded-md
+                ${isSelected && "bg-surface border-l-2 border-primary"}
                 ${!isRenaming && "hover:cursor-pointer hover:bg-elevated"}
             `}
             onClick={() => router.push(`/chat/${id}`, { scroll: false })}
@@ -208,8 +212,8 @@ function AIChat({ id, name, renameChat, deleteChat }: AIChatProps) {
         {isDeleting && (
             <div className="fixed inset-0 flex items-center justify-center bg-black/90 z-999">
                 <div className="bg-surface border-border p-6 rounded-2xl shadow-lg flex flex-col max-w-100 justify-center gap-3">
-                    <h3 className="text-foreground text-h3">Are you sure?</h3>
-                    <p className="text-foreground-secondary text-body">This action is irreversible. The selected chat will be permanently deleted without the possibility of recovery.</p>
+                    <h3 className="text-foreground text-h3">{t("deleteModalTitle")}</h3>
+                    <p className="text-foreground-secondary text-body">{t("deleteModalText")}</p>
                     <div className="flex flex-row justify-end gap-6">
                         <button 
                             className="
@@ -220,7 +224,7 @@ function AIChat({ id, name, renameChat, deleteChat }: AIChatProps) {
                                 setIsDeleting(false);
                             }}
                         >
-                            Cancel
+                            {t("cancel")}
                         </button>
                         <button 
                             className="
@@ -228,11 +232,12 @@ function AIChat({ id, name, renameChat, deleteChat }: AIChatProps) {
                                 hover:bg-error hover:cursor-pointer
                             "
                             onClick={(e) => {
-                                deleteChat(id);
+                                isSelected && router.replace("/chat");
                                 setIsDeleting(false);
+                                deleteChat(id);
                             }}
                         >
-                            Delete
+                            {t("delete")}
                         </button>
                     </div>
                 </div>
@@ -306,11 +311,13 @@ function groupChats(chats: Chat[]): GroupedChats {
 }
 
 export function SidebarChats({ chats, deleteChat, renameChat }: SidebarChatsProps) {
+    const t = useTranslations("sidebarChats")
+
     if (!chats) {
         return (
-        <div className="flex-1 overflow-y-auto px-6 pt-3 flex flex-col gap-3">
-            <p className="text-body text-error">Failed to get the chats</p>
-        </div>
+            <div className="flex-1 overflow-y-auto px-6 pt-3 flex flex-col gap-3">
+                <p className="text-body text-error">{t("failedChats")}</p>
+            </div>
         );
     }
 
@@ -318,10 +325,18 @@ export function SidebarChats({ chats, deleteChat, renameChat }: SidebarChatsProp
 
     return (
         <div className="flex-1 overflow-y-auto px-6 pt-3 flex flex-col gap-3">
-            <GroupOfChats name="Today" chats={todayChats} renameChat={renameChat} deleteChat={deleteChat} />
-            <GroupOfChats name="Yesterday" chats={yesterdayChats} renameChat={renameChat} deleteChat={deleteChat} />
-            <GroupOfChats name="Last 7 days" chats={lastDaysChats} renameChat={renameChat} deleteChat={deleteChat} />
-            <GroupOfChats name="Older" chats={oldChats} renameChat={renameChat} deleteChat={deleteChat} />
+            {todayChats.length > 0 && (
+                <GroupOfChats name={t("today")} chats={todayChats} renameChat={renameChat} deleteChat={deleteChat} />
+            )}
+            {yesterdayChats.length > 0 && (
+                <GroupOfChats name={t("yesterday")} chats={yesterdayChats} renameChat={renameChat} deleteChat={deleteChat} />
+            )}
+            {lastDaysChats.length > 0 && (
+                <GroupOfChats name={t("lastWeek")} chats={lastDaysChats} renameChat={renameChat} deleteChat={deleteChat} />
+            )}
+            {oldChats.length > 0 && (
+                <GroupOfChats name={t("old")} chats={oldChats} renameChat={renameChat} deleteChat={deleteChat} />
+            )}
         </div>
     );
 }

@@ -3,6 +3,7 @@
 import { useChat } from "@/src/hooks/useChat";
 import { ChatArea } from "@/src/components/chat/ChatArea";
 import { ComposeArea } from "@/src/components/chat/ComposeArea";
+import MainLogo from "@/public/icons/logoMain.svg";
 
 export default function ChatClient({
   chatId,
@@ -49,6 +50,7 @@ export default function ChatClient({
           messages={messages}
           loading={loading}
           error={error}
+          applyToolUse={applyToolUse}
         />
       </div>
 
@@ -57,6 +59,8 @@ export default function ChatClient({
         sendMessage={sendMessage}
         sending={sending}
         createChat={createChat}
+        isNewChat={chatId ? false : true}
+        isToolRequestPending={isToolRequestPending}
       />
     </div>
   );
