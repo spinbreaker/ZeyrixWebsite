@@ -25,6 +25,7 @@ export function useChat(chatId?: string) {
   const [messages, setMessages] = useState<Message[]>(() => getOptimisticMessages(chatId));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isToolRequestPending, setIsToolRequestPending] = useState(false);
   const [sending, setSending] = useState(false);
   const previousChatIdRef = useRef<string | undefined>(chatId);
   
@@ -101,6 +102,7 @@ export function useChat(chatId?: string) {
         text: prompt,
         attachments: attachments,
         createdAt: new Date().toISOString(),
+        applyToolUse: applyToolUse,
       };
 
       if (newChatId) {
@@ -121,7 +123,7 @@ export function useChat(chatId?: string) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ user_prompt: prompt, file_ids: fileIds, chat_id: targetChatId }),
         });
-
+        
         try {
           await res.clone().json();
         } catch {
@@ -145,10 +147,11 @@ export function useChat(chatId?: string) {
 
         const responseMessage: Message = {
           id: crypto.randomUUID(),
-          role: "assistant",
+          role: role,
           text: data.content,
-          attachments: [],
           createdAt: new Date().toISOString(),
+          approvalDetails: data.approvalDetails,
+          applyToolUse: applyToolUse,
         };
         setMessages((prev) => [...prev, responseMessage]);
 
@@ -180,5 +183,76 @@ export function useChat(chatId?: string) {
     [chatId]
   );
 
-  return { messages, loading, error, sending, sendMessage };
+  const applyToolUse = useCallback(async (requestId: string, action: "confirm" | "reject") => {
+      setSending(true);
+      setError(null);
+
+      try {
+        const res = await fetch(`/api/ai/apply_tool`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ requestId: requestId, action: action }),
+        });
+        
+        try {
+          await res.clone().json();
+        } catch {
+          throw new Error(`Failed to connect to the server.\nCheck your network and try again.`)
+        }
+
+        if (!res.ok) {
+          const resError = await res.json();
+          throw new Error(`Internal server error occurred.\nPlease, copy the request id and inform us.\nRequest ID: ${resError.request_id}`)
+        }
+        const data: AIResponse = await res.json();
+
+        setMessages(prev => {
+          const index = prev.findLastIndex(
+            message => message.role === "approve"
+          );
+
+          if (index === -1) {
+            return prev;
+          }
+
+          return prev.map((message, i) =>
+            i === index
+              ? {
+                  ...message,
+                  approvalDetails: data.approvalDetails,
+                }
+              : message
+          );
+        });
+
+        const assistantMessage: Message = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          text: data.content,
+          createdAt: new Date().toISOString(),
+          applyToolUse: applyToolUse,
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+        setIsToolRequestPending(false);
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(`Failed to handle the request.\nTry again in a moment.\nIf this problem will repeat, please, inform us.`);
+
+        const errorMessage: Message = {
+          id: crypto.randomUUID(),
+          role: "error",
+          text: error.message,
+          createdAt: new Date().toISOString(),
+          applyToolUse: applyToolUse,
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+
+        setError(error.message);
+        throw error;
+      } finally {
+        setSending(false);
+      }
+    }, [])
+
+  return { messages, loading, error, sending, sendMessage, applyToolUse, isToolRequestPending };
 }
