@@ -1,9 +1,4 @@
 {
-    "chat": {
-        "rename": "Rename",
-        "delete": "Delete",
-        "newChat": "New Chat"
-    },
     "notFoundMain": {
         "title": "Page not found",
         "description": "We are very sorry, but we could not find this page.",
@@ -13,5 +8,56 @@
         "title": "Chat not found",
         "description": "We are very sorry, but it looks like this chat does not exist or has been deleted.",
         "button": "Chats"
+    },
+    "chat": {
+        "rename": "Rename",
+        "delete": "Delete",
+        "deleteModalTitle": "Are you sure?",
+        "deleteModalText": "The selected chat will be permanently deleted without the possibility of recovery.",
+        "cancel": "Cancel"
+    },
+    "sidebarHeader": {
+        "newChat": "New chat"
+    },
+    "sidebarChats": {
+        "failedChats": "Failed to get the chats.",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "lastWeek": "Last 7 days",
+        "old": "Older"
+    },
+    "sidebarFooter": {
+        "guest": "Guest"
+    },
+    "composeArea": {
+        "connectingPlaceholder": "Connecting...",
+        "standardPlaceholder": "Ask ZeyrixAI...",
+        "recordingPlaceholder": "Feel free to speak, I'm listening...",
+        "warningCaption": "ZeyrixAI is AI and can make mistakes. Please double-check responses."
+    },
+    "toolApproval": {
+        "title": "Confirmation required",
+        "cancelled": "Cancelled",
+        "expired": "Expired",
+        "confirmed": "Confirmed",
+        "failed": "Failed",
+        "executed": "Executed",
+        "irreversible": "Irreversible",
+        "continue": "Continue",
+        "decline": "Decline",
+        "details": "Details",
+        "failedToLoad": "Failed to load the necessary tool-choose interface.\nTry to reload the page or contact us."
+    },
+    "message": {
+        "today": "Today",
+        "yesterday": "Yesterday"
+    },
+    "newChat": {
+        "title1": "How can I help?",
+        "title2": "Your AI assistant",
+        "title3": "Ideas start here",
+        "title4": "How can I assist?",
+        "title5": "Your digital partner",
+        "title6": "Think. Plan. Act."
     }
 }
