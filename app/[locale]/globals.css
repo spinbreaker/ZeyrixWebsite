@@ -106,3 +106,20 @@
   --text-nav--letter-spacing: 0em;
   --text-nav--font-weight: 500;
 }
+
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #333333;
+    border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #444444;
+}
