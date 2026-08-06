@@ -1,31 +1,52 @@
 "use client";
 
-import AttachIcon from "@/src/icons/plus.svg";
+import PlusIcon from "@/src/icons/plus.svg";
 import MicroIcon from "@/src/icons/microphone.svg";
 import SendIcon from "@/src/icons/arrow.svg";
+import CheckIcon from "@/src/icons/check.svg";
+import CloseIcon from "@/src/icons/close.svg";
 import { useRef, useState, useEffect } from "react";
 import { useConnection } from "../auth/ConnectionContext";
 import { useRouter } from "next/navigation";
 import { useFileUpload } from "@/src/hooks/useFileUpload";
 import { AttachmentCard } from "./Attachment";
 import { mapAttachments, Attachment } from "@/src/types/chat";
+import { useVoiceRecorder } from "@/src/hooks/useVoiceRecorder";
+import { motion, AnimatePresence } from "motion/react";
+import { useTranslations } from "next-intl";
 
 type ComposeAreaProps = {
   chatId?: string,
   sendMessage: (prompt: string, attachments: Attachment[], fileIds: string[], newChatId?: string) => Promise<void>,
   sending: boolean,
-  createChat: (userPrompt: string) => Promise<string>
+  createChat: (userPrompt: string) => Promise<string>,
+  isNewChat: boolean,
+  isToolRequestPending: boolean;
 }
 
-export function ComposeArea({ chatId, sendMessage, sending, createChat }: ComposeAreaProps) {
+export function ComposeArea({ chatId, sendMessage, sending, createChat, isNewChat, isToolRequestPending }: ComposeAreaProps) {
+    const t = useTranslations("composeArea");
+
     const { state } = useConnection();
     const canInteract = state === "ready";
 
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const { attachments, uploadFile, removeAttachment, readyFileIds, isUploading, setAttachments } = useFileUpload();
+    const { attachments, addAttachment, removeAttachment, readyFileIds, isUploading, setAttachments, transcribeVoice } = useFileUpload();
+
+    const { isRecording, startRecording, stopRecording, waveform } = useVoiceRecorder({
+        onRecordingFinished: async (blob) => {
+            const voiceFile = new File([blob], "voice.webm", {
+                type: blob.type,
+            });
+            
+            const transcribed = await transcribeVoice(voiceFile);
+
+            setMessage((prev) => `${prev.trim()} ${transcribed}`.trim())
+        }
+    })
 
     const [message, setMessage] = useState("");
-    const canSend = message.trim().length > 0 && canInteract && !sending && !isUploading;
+    const canSend = message.trim().length > 0 && canInteract && !sending && !isUploading && !isToolRequestPending;
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -33,7 +54,7 @@ export function ComposeArea({ chatId, sendMessage, sending, createChat }: Compos
 
      function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
         const files = Array.from(e.target.files ?? []);
-        files.forEach(uploadFile);
+        files.forEach(addAttachment);
         e.target.value = "";
     }
 
@@ -61,8 +82,8 @@ export function ComposeArea({ chatId, sendMessage, sending, createChat }: Compos
                 await sendMessage(message, attachmentsToSend, readyFileIds);
             } else {
                 const newChatId = await createChat(message);
-                await sendMessage(message, attachmentsToSend, readyFileIds, newChatId);
                 router.replace(`/chat/${newChatId}`, { scroll: false });
+                await sendMessage(message, attachmentsToSend, readyFileIds, newChatId);
             }
         } catch {
             setMessage(text);
@@ -83,26 +104,61 @@ export function ComposeArea({ chatId, sendMessage, sending, createChat }: Compos
         }
     }
 
+    const textareaPlaceholder = () => {
+        if (!canInteract) {
+            return t("connectingPlaceholder");
+        } else if (isRecording) {
+            return t("recordingPlaceholder");
+        } else {
+            return t("standardPlaceholder");
+        }
+    }
+
     return (
         <div className="bg-background px-6 pb-3 w-full h-fit flex flex-col items-center">
-            <div className="bg-background border border-border rounded-2xl px-4 py-3 flex flex-col gap-2 max-w-190 w-full">
-                {attachments.length > 0 && (
-                    <div className="flex max-w-full gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                        {attachments.map((a) => (
-                            <AttachmentCard key={a.localId} attachment={a} onRemove={removeAttachment} />
-                        ))}
-                    </div>
-                )}
+            <div
+                className="
+                    bg-background border border-border rounded-2xl
+                    px-4 py-3 flex flex-col gap-2
+                    max-w-190 w-full
+                "
+            >
+                <AnimatePresence>
+                    {attachments.length > 0 && (
+                        <motion.div
+                            layout
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                        >
+                            <div className="flex max-w-full gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                                {attachments.map((a) => (
+                                    <AttachmentCard
+                                        key={a.localId}
+                                        attachment={a}
+                                        onRemove={removeAttachment}
+                                    />
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 <textarea
+                    autoFocus={isNewChat}
                     ref={textareaRef}
                     value={message}
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     disabled={!canInteract}
-                    placeholder={!canInteract ? "Подключение..." : "Спросите Zeyrix AI..."}
-                    rows={1}
-                    className="w-full h-fit resize-none bg-transparent outline-none font-sans text-body text-foreground placeholder:text-foreground-muted max-h-50"
+                    placeholder={textareaPlaceholder()}
+                    readOnly={isRecording}
+                    rows={isNewChat ? 2 : 1}
+                    className={`
+                        w-full h-fit resize-none bg-transparent outline-none font-sans text-body text-foreground placeholder:text-foreground-muted max-h-50
+                    `}
                 />
 
                 <input
@@ -113,36 +169,99 @@ export function ComposeArea({ chatId, sendMessage, sending, createChat }: Compos
                     onChange={handleFileSelect}
                 />
 
-                <div className="w-full h-fit flex justify-between">
+                <div className="w-full h-fit flex justify-between gap-5">
                     <button 
-                        className={`px-3 py-4 ${canInteract && "cursor-pointer"}`}
+                        className={`
+                            size-8 flex items-center justify-center rounded-lg
+                            ${canInteract && "hover:bg-elevated"}
+                            ${isRecording && "hidden"}
+                            ${canInteract && !isRecording && "cursor-pointer"}
+                        `}
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={!canInteract && sending}
+                        disabled={!canInteract || sending || isRecording}
                     >
-                        <AttachIcon className="text-foreground-secondary size-4" />
+                        <PlusIcon className="text-foreground-secondary size-4" />
                     </button>
 
-                    <div className="flex flex-row items-center gap-3">
-                        <button className={`p-3 ${canInteract && "cursor-pointer"}`} disabled={!canInteract}>
-                            <MicroIcon className="text-foreground-secondary size-5" />
-                        </button>
+                    <div className="flex flex-row items-center justify-end gap-1 h-full flex-1 min-w-0 overflow-hidden">
+                        {waveform.map((value, index) => (
+                            <div
+                                key={index}
+                                className="w-1 shrink-0 bg-primary rounded-full"
+                                style={{
+                                    height: `${Math.max(value * 200, 3)}px`,
+                                    minHeight: "3px",
+                                    maxHeight: "30px",
+                                }}
+                            />
+                        ))}
+                    </div>
 
-                        <button
-                            disabled={!canSend}
-                            className={`
-                                w-8 h-8 rounded-lg flex items-center justify-center
-                                transition-all duration-200
-                                ${canSend ? "bg-primary cursor-pointer" : "bg-foreground-muted/50"}
-                            `}
-                            onClick={handleSend}
-                        >
-                            <SendIcon className="size-3 text-background" />
-                        </button>
+                    <div className="flex flex-row items-center gap-3">
+                        {isRecording ? (
+                            <>
+                            <button 
+                                className={`
+                                    size-8 rounded-lg flex items-center justify-center
+                                    hover:cursor-pointer bg-elevated
+                                `}
+                                disabled={!canInteract}
+                                onClick={() => {
+                                    isRecording && stopRecording(true);
+                                }}
+                            >
+                                <CloseIcon className="text-foreground-secondary size-3.5" />
+                            </button>
+
+                            <button
+                                className={`
+                                    size-8 rounded-lg flex items-center justify-center
+                                    transition-all duration-200
+                                    bg-primary cursor-pointer
+                                `}
+                                onClick={() => {
+                                    isRecording && stopRecording(false);
+                                }}
+                            >
+                                <CheckIcon className="size-3 text-background" />
+                            </button>
+                            </>
+                        ) : (
+                            <>
+                            <button 
+                                className={`
+                                    size-8 rounded-lg flex items-center justify-center
+                                    ${canInteract && "hover:cursor-pointer hover:bg-elevated"}
+                                `}
+                                disabled={!canInteract}
+                                onClick={() => {
+                                    !isRecording && startRecording()
+                                }}
+                            >
+                                <MicroIcon className="text-foreground-secondary size-5" />
+                            </button>
+
+                            <button
+                                disabled={!canSend}
+                                className={`
+                                    size-8 rounded-lg flex items-center justify-center
+                                    transition-all duration-200
+                                    ${canSend ? "bg-primary cursor-pointer" : "bg-foreground-muted/50"}
+                                `}
+                                onClick={handleSend}
+                            >
+                                <SendIcon className="size-3 text-background" />
+                            </button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
-            <p className="text-foreground-muted font-sans text-caption max-w-190 w-full">
-                ZeyrixAI - это искусственный интеллект, и он может ошибаться. Пожалуйста, перепроверяйте ответы.
+            <p className={`
+                text-foreground-muted font-sans text-caption max-w-190 w-full text-center
+                ${isNewChat ? "hidden" : ""}
+            `}>
+                {t("warningCaption")}
             </p>
         </div>
     );
