@@ -1,46 +1,56 @@
 import { MessageAttachment } from "./Attachment";
 import CopyIcon from "@/src/icons/copy.svg";
 import LikeIcon from "@/src/icons/like.svg";
+import WarningIcon from "@/src/icons/warning.svg";
+import ArrowIcon from "@/src/icons/arrowBasic.svg";
+import ConfirmedIcon from "@/src/icons/check.svg";
+import DeclinedIcon from "@/src/icons/close.svg";
+import ExpiredIcon from "@/src/icons/time.svg";
 import { Message } from "@/src/types/chat";
+import { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { useTranslations, useLocale } from "next-intl";
+import { format, formatDistanceToNow } from "date-fns";
+import { getDateFnsLocale } from "@/src/lib/date-fns-locale";
 
 function formatMessageTime(dateString: string): string {
+    const t = useTranslations("message");
+    const locale = useLocale();
+    const dfLocale = getDateFnsLocale(locale);
+
     const date = new Date(dateString);
     const now = new Date();
 
-    const isToday =
-        date.getDate() === now.getDate() &&
-        date.getMonth() === now.getMonth() &&
-        date.getFullYear() === now.getFullYear();
-    
-    const isYesterday =
-        date.getDate() === (now.getDate() - 1) &&
-        date.getMonth() === now.getMonth() &&
-        date.getFullYear() === now.getFullYear();
-
     const isThisYear = date.getFullYear() === now.getFullYear();
 
-    const dayMonthYear = date.toLocaleDateString([], {
-        day: "numeric",
-        month: "short",
-        ...(isThisYear ? {} : { year: "numeric" }),
-    });
+    const isToday =
+        date.toDateString() === now.toDateString();
 
-    const hourMinute = date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-    });
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+
+    const isYesterday =
+        date.toDateString() === yesterday.toDateString();
+
+    const formatted = isThisYear ? format(date, `d MMM, HH:mm`, { locale: dfLocale })
+                                 : format(date, `d MMM, yyyy, HH:mm`, { locale: dfLocale });
+    const time = new Intl.DateTimeFormat(locale, {
+        hour: 'numeric',
+        minute: '2-digit',
+    }).format(date)
 
     if (isToday) {
-        return `Сегодня, ${hourMinute}`;
-    }
-    if (isYesterday) {
-        return `Вчера, ${hourMinute}`;
+        return `${t("today")}, ${time}`;
     }
 
-    return `${dayMonthYear}, ${hourMinute}`;
+    if (isYesterday) {
+        return `${t("yesterday")}, ${time}`;
+    }
+
+    return formatted;
 }
 
-export function MessageBubble({ role, text, attachments, createdAt }: Message) {
+export function MessageBubble({ role, text, attachments, createdAt, approvalDetails, applyToolUse }: Message) {
     const time = formatMessageTime(createdAt);
 
     switch (role) {
@@ -51,7 +61,7 @@ export function MessageBubble({ role, text, attachments, createdAt }: Message) {
                         {attachments && attachments.length === 0 ? (
                             <></>
                         ) : (
-                            <div className="flex max-w-full gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                            <div className="flex max-w-full gap-2 overflow-x-auto pb-1 scrollbar-thin overflow-y-hidden">
                                 {attachments?.map((attachment) => (
                                     <MessageAttachment
                                     key={attachment.id}
@@ -75,7 +85,7 @@ export function MessageBubble({ role, text, attachments, createdAt }: Message) {
         case "assistant":
             return (
                 <div className="flex justify-start">
-                    <div className="bg-surface border border-border px-4 py-3 rounded-t-[20px] rounded-br-[20px] rounded-bl-sm max-w-[80%]">
+                    <div className="bg-surface border border-border px-4 py-3 rounded-t-[20px] rounded-br-[20px] rounded-bl-sm max-w-[90%]">
                         {attachments && attachments.length === 0 ? (
                             <></>
                         ) : (
