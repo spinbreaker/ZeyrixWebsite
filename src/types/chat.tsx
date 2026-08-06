@@ -2,12 +2,27 @@ export type AITag = {
     text: string;
 };
 
+type ApprovalDetails = {
+  approvalId: string;
+  approvalExpiresAt: string;
+  toolName: string;
+  riskLevel: "low" | "medium" | "high" | "critical";
+  actionSummary: string;
+  affectedResources: string[];
+  reversible: boolean;
+  paramsPreview: any;
+  status: "pending" | "approved" | "rejected" | "expired" | "executed" | "failed";
+  appliedAt: string | null;
+}
+
 export type Message = {
     id: string;
-    role: "user" | "assistant";
+    role: "user" | "assistant" | "approve" | "error";
     text: string;
-    attachments: Attachment[];
+    attachments?: Attachment[];
     createdAt: string;
+    approvalDetails?: ApprovalDetails;
+    applyToolUse: (requestId: string, action: "confirm" | "reject") => Promise<void>;
 };
 
 export type Attachment = {
@@ -45,12 +60,18 @@ export interface PendingAttachment {
   status: AttachmentStatus;
   fileId: string | null;
   error: string | null;
-}
+};
 
 export interface PresignResponse {
   uploadUrl: string;
   fileId: string;
-}
+};
+
+export type AIResponse = {
+  status: "completed" | "approve_required";
+  content: string;
+  approvalDetails?: ApprovalDetails;
+};
 
 export function mapAttachments(attachment: PendingAttachment): Attachment {
   const sizeMB = `${(attachment.file.size / (1024 * 1024)).toFixed(2)} MB`
