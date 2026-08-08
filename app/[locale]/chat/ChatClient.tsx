@@ -3,7 +3,8 @@
 import { useChat } from "@/src/hooks/useChat";
 import { ChatArea } from "@/src/components/chat/ChatArea";
 import { ComposeArea } from "@/src/components/chat/ComposeArea";
-import MainLogo from "@/public/icons/logoMain.svg";
+import { useConnection } from "@/src/components/auth/ConnectionContext";
+import { div } from "motion/react-client";
 
 export default function ChatClient({
   chatId,
@@ -12,8 +13,20 @@ export default function ChatClient({
   chatId?: string;
   createChat: (userPrompt: string) => Promise<string>;
 }) {
-  const { messages, loading, error, sending, sendMessage, applyToolUse, isToolRequestPending } = useChat(chatId);
-  const isEmptyRootChat = !chatId && !loading && messages.length === 0;
+  const { state } = useConnection();
+  const { messages, loading, error, sending, sendMessage, applyToolUse } = useChat(chatId);
+  const isEmptyRootChat = !chatId && messages.length === 0;
+  const isLoading = state !== "ready" && loading;
+
+  const isToolRequestPending = messages.some(
+      message =>
+          message.role === "assistant" &&
+          message.status === "approval_required"
+  );
+
+  if (isLoading) {
+    return <div></div>;
+  }
 
   if (isEmptyRootChat) {
     return (
