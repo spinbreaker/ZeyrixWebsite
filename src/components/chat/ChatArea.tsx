@@ -122,8 +122,6 @@ export function ChatArea({ loading, messages, compactEmptyState, chatId, applyTo
     return (
         <div
             ref={containerRef}
-            // key заставляет React полностью пересоздать контейнер при смене чата —
-            // убирает "призрачный" scrollTop от предыдущего чата
             key={chatId}
             className="w-full h-full px-6 overflow-y-auto py-3"
             style={{
