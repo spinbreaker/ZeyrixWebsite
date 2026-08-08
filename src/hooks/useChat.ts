@@ -25,13 +25,11 @@ export function useChat(chatId?: string) {
   const [messages, setMessages] = useState<Message[]>(() => getOptimisticMessages(chatId));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isToolRequestPending, setIsToolRequestPending] = useState(false);
   const [sending, setSending] = useState(false);
   const previousChatIdRef = useRef<string | undefined>(chatId);
   
-  // Загрузка истории при монтировании / смене chatId
   useEffect(() => {
-    let cancelled = false; // защита от гонки при быстрой смене chatId
+    let cancelled = false;
     const previousChatId = previousChatIdRef.current;
     previousChatIdRef.current = chatId;
 
@@ -40,7 +38,7 @@ export function useChat(chatId?: string) {
       setError(null);
 
       if (previousChatId !== undefined && previousChatId !== chatId) {
-        setMessages(getOptimisticMessages(chatId));
+          setMessages(getOptimisticMessages(chatId));
       }
 
       if (!chatId) {
@@ -57,19 +55,11 @@ export function useChat(chatId?: string) {
         if (!res.ok) throw new Error(`Backend вернул ${res.status}`);
         const data: Message[] = await res.json();
 
+        const status = data.at(-1)?.status;
+        const approvalDetails = data.at(-1)?.steps?.at(-1)?.approvalDetails;
+
         if (!cancelled) {
           if (data.length > 0) {
-            if (data.at(-1)?.role === "approve") {
-              const expiresAt = data.at(-1)?.approvalDetails?.approvalExpiresAt;
-              const isProbablyPending = new Date() < new Date(expiresAt || Date.now())
-
-              if (isProbablyPending) {
-                setIsToolRequestPending(true);
-              } else {
-                setIsToolRequestPending(false);
-              }
-            }
-
             clearOptimisticMessages(chatId);
             setMessages(data);
           } else {
@@ -88,7 +78,7 @@ export function useChat(chatId?: string) {
     loadMessages();
 
     return () => {
-      cancelled = true; // если chatId сменился до завершения fetch — игнорируем устаревший ответ
+      cancelled = true;
     };
   }, [chatId]);
 
@@ -99,8 +89,18 @@ export function useChat(chatId?: string) {
       const optimisticUserMsg: Message = {
         id: crypto.randomUUID(),
         role: "user",
+        status: "completed",
         text: prompt,
         attachments: attachments,
+        createdAt: new Date().toISOString(),
+        applyToolUse: applyToolUse,
+      };
+
+      const optimisticAgentMessage: Message = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        status: "pending",
+        text: "",
         createdAt: new Date().toISOString(),
         applyToolUse: applyToolUse,
       };
@@ -109,10 +109,11 @@ export function useChat(chatId?: string) {
         setOptimisticMessages(newChatId, [
           ...(optimisticMessagesByChatId.get(newChatId) ?? []),
           optimisticUserMsg,
+          optimisticAgentMessage,
         ]);
       }
 
-      setMessages((prev) => [...prev, optimisticUserMsg]);
+      setMessages((prev) => [...prev, optimisticUserMsg, optimisticAgentMessage]);
       setSending(true);
       setError(null);
 
@@ -136,24 +137,27 @@ export function useChat(chatId?: string) {
         }
         const data: AIResponse = await res.json();
 
-        if (data.status === "completed") {
-          var role: "assistant" | "approve" = "assistant";
-        } else if (data.status === "approve_required") {
-          var role: "assistant" | "approve" = "approve";
-          setIsToolRequestPending(true);
-        } else {
-          throw new Error("The server response was not as expected.\nPlease, inform us if you see it.\nError detail: AI response status was null or different.");
-        }
+        setMessages(prev => {
+          const index = prev.findLastIndex(
+            message => message.role === "assistant"
+          );
 
-        const responseMessage: Message = {
-          id: crypto.randomUUID(),
-          role: role,
-          text: data.content,
-          createdAt: new Date().toISOString(),
-          approvalDetails: data.approvalDetails,
-          applyToolUse: applyToolUse,
-        };
-        setMessages((prev) => [...prev, responseMessage]);
+          if (index === -1) {
+            return prev;
+          }
+
+          return prev.map((message, i) =>
+            i === index
+              ? {
+                  ...message,
+                  status: data.status == "completed" ? "completed" : "approval_required",
+                  text: data.content,
+                  steps: data.steps,
+                  processingSeconds: data.processingSeconds,
+                }
+              : message
+          );
+        });
 
         if (targetChatId) {
           clearOptimisticMessages(targetChatId);
@@ -165,14 +169,25 @@ export function useChat(chatId?: string) {
           clearOptimisticMessages(targetChatId);
         }
 
-        const errorMessage: Message = {
-          id: crypto.randomUUID(),
-          role: "error",
-          text: error.message,
-          createdAt: new Date().toISOString(),
-          applyToolUse: applyToolUse,
-        };
-        setMessages((prev) => [...prev, errorMessage]);
+        setMessages(prev => {
+          const index = prev.findLastIndex(
+            message => message.role === "assistant"
+          );
+
+          if (index === -1) {
+            return prev;
+          }
+
+          return prev.map((message, i) =>
+            i === index
+              ? {
+                  ...message,
+                  status: "error",
+                  text: error.message,
+                }
+              : message
+          );
+        });
 
         setError(error.message);
         throw error;
@@ -209,7 +224,32 @@ export function useChat(chatId?: string) {
 
         setMessages(prev => {
           const index = prev.findLastIndex(
-            message => message.role === "approve"
+            message => message.status === "approval_required"
+          );
+
+          if (index === -1) {
+            return prev;
+          }
+          
+          return prev.map((message, i) =>
+            i === index
+              ? {
+                  ...message,
+                  status: "completed",
+                  text: data.content,
+                  steps: data.steps,
+                  processingSeconds: (message.processingSeconds ? message.processingSeconds : 0) + (data.processingSeconds ? data.processingSeconds : 0),
+                }
+              : message
+          );
+        });
+
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(`Failed to handle the request.\nTry again in a moment.\nIf this problem will repeat, please, inform us.`);
+
+        setMessages(prev => {
+          const index = prev.findLastIndex(
+            message => message.role === "assistant"
           );
 
           if (index === -1) {
@@ -220,32 +260,12 @@ export function useChat(chatId?: string) {
             i === index
               ? {
                   ...message,
-                  approvalDetails: data.approvalDetails,
+                  status: "error",
+                  text: error.message,
                 }
               : message
           );
         });
-
-        const assistantMessage: Message = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          text: data.content,
-          createdAt: new Date().toISOString(),
-          applyToolUse: applyToolUse,
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-        setIsToolRequestPending(false);
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error(`Failed to handle the request.\nTry again in a moment.\nIf this problem will repeat, please, inform us.`);
-
-        const errorMessage: Message = {
-          id: crypto.randomUUID(),
-          role: "error",
-          text: error.message,
-          createdAt: new Date().toISOString(),
-          applyToolUse: applyToolUse,
-        };
-        setMessages((prev) => [...prev, errorMessage]);
 
         setError(error.message);
         throw error;
@@ -254,5 +274,5 @@ export function useChat(chatId?: string) {
       }
     }, [])
 
-  return { messages, loading, error, sending, sendMessage, applyToolUse, isToolRequestPending };
+  return { messages, loading, error, sending, sendMessage, applyToolUse };
 }
