@@ -105,6 +105,28 @@
   --text-nav--line-height: 1;
   --text-nav--letter-spacing: 0em;
   --text-nav--font-weight: 500;
+
+  /* Animation */
+  --animate-shimmer: shimmer 1.8s linear infinite;
+  --animate-indeterminate: indeterminate 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-150%);
+  }
+  100% {
+    transform: translateX(150%);
+  }
+}
+
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
 }
 
 ::-webkit-scrollbar {
