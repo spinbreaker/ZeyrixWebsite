@@ -1,8 +1,21 @@
-export type AITag = {
-    text: string;
-};
+interface PendingAgentMessage {
+  type: "pending";
+  id: string;
+  steps: AgentStep[];
+  status: "thinking" | "streaming" | "done";
+}
 
-type ApprovalDetails = {
+export interface AgentStep {
+  id: string;
+  kind: "tool_call" | "reasoning";
+  label: string;
+  status: "in_progress" | "done" | "error" | "awaiting_approval" | "denied" | "expired";
+  approvalDetails?: ApprovalDetails;
+  toolName?: string;
+  isLast?: boolean;
+}
+
+export type ApprovalDetails = {
   approvalId: string;
   approvalExpiresAt: string;
   toolName: string;
@@ -17,18 +30,20 @@ type ApprovalDetails = {
 
 export type Message = {
     id: string;
-    role: "user" | "assistant" | "approve" | "error";
+    role: "user" | "assistant";
+    status: "completed" | "pending" | "error" | "approval_required"
     text: string;
     attachments?: Attachment[];
     createdAt: string;
-    approvalDetails?: ApprovalDetails;
+    processingSeconds?: number;
+    steps?: AgentStep[];
     applyToolUse: (requestId: string, action: "confirm" | "reject") => Promise<void>;
 };
 
 export type Attachment = {
-    id: string;
-    type: string;
-    name: string;
+    fileId: string;
+    filename: string;
+    mimeType: string;
     size: string;
 };
 
@@ -52,12 +67,10 @@ export function mapChat(chat: ApiChat): Chat {
   };
 }
 
-export type AttachmentStatus = "uploading" | "done" | "error";
-
 export interface PendingAttachment {
   localId: string;
   file: File;
-  status: AttachmentStatus;
+  status: "uploading" | "done" | "error";
   fileId: string | null;
   error: string | null;
 };
@@ -70,16 +83,17 @@ export interface PresignResponse {
 export type AIResponse = {
   status: "completed" | "approve_required";
   content: string;
-  approvalDetails?: ApprovalDetails;
+  steps?: AgentStep[];
+  processingSeconds?: number;
 };
 
 export function mapAttachments(attachment: PendingAttachment): Attachment {
   const sizeMB = `${(attachment.file.size / (1024 * 1024)).toFixed(2)} MB`
 
   return {
-    id: attachment.fileId ?? crypto.randomUUID(),
-    type: attachment.file.type,
-    name: attachment.file.name,
+    fileId: attachment.fileId ?? crypto.randomUUID(),
+    mimeType: attachment.file.type,
+    filename: attachment.file.name,
     size: sizeMB,
   }
 }
