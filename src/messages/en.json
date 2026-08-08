@@ -33,6 +33,7 @@
         "connectingPlaceholder": "Connecting...",
         "standardPlaceholder": "Ask ZeyrixAI...",
         "recordingPlaceholder": "Feel free to speak, I'm listening...",
+        "transcribingPlaceholder": "Transcribing your speech...",
         "warningCaption": "ZeyrixAI is AI and can make mistakes. Please double-check responses."
     },
     "toolApproval": {
@@ -59,5 +60,14 @@
         "title4": "How can I assist?",
         "title5": "Your digital partner",
         "title6": "Think. Plan. Act."
+    },
+    "agentSteps": {
+        "m": "m", "s": "s",
+        "working": "Working for",
+        "worked": "Worked for",
+        "awaiting": "Awaiting your decision...",
+        "unknown": "Unknown",
+        "reasoning": "Reasoning",
+        "tool": "Tool"
     }
 }

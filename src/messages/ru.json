@@ -33,6 +33,7 @@
         "connectingPlaceholder": "Подключение...",
         "standardPlaceholder": "Спросите ZeyrixAI...",
         "recordingPlaceholder": "Говорите, я вас слушаю...",
+        "transcribingPlaceholder": "Распознаю вашу речь...",
         "warningCaption": "ZeyrixAI - это ИИ, и он может совершать ошибки. Пожалуйста, перепроверяйте ответы."
     },
     "toolApproval": {
@@ -59,5 +60,14 @@
         "title4": "С чего начнём?",
         "title5": "Ваш цифровой партнёр",
         "title6": "Думай. Планируй. Действуй."
+    },
+    "agentSteps": {
+        "m": "м", "s": "с",
+        "working": "Работаю уже",
+        "worked": "Выполнял запрос",
+        "awaiting": "Ожидаю вашего решения...",
+        "unknown": "Неизвестно",
+        "reasoning": "Рассуждение",
+        "tool": "Инструмент"
     }
 }
