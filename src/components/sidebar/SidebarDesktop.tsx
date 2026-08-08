@@ -10,10 +10,15 @@ export function SidebarDesktop({
 }: {
     children: ReactNode;
 }) {
-    const [expanded, setExpanded] = useState(true);
+    const sidebarCookie = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("sidebar="))
+        ?.split("=")[1];
+    const [expanded, setExpanded] = useState(sidebarCookie === "expanded" ? true : false)
 
     const toggle = () => {
         setExpanded((prev) => !prev);
+        document.cookie = expanded ? "sidebar=no; path=/" : "sidebar=expanded; path=/";
     };
 
     return (

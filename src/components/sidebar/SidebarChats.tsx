@@ -125,7 +125,9 @@ function AIChat({ id, name, renameChat, deleteChat }: AIChatProps) {
                 relative group
                 flex flex-row justify-between pl-2 py-1.5 items-center w-full rounded-md
                 ${isSelected && "bg-surface border-l-2 border-primary"}
-                ${!isRenaming && "hover:cursor-pointer hover:bg-elevated"}
+                ${!isRenaming && "hover:cursor-pointer"}
+                ${!isSelected && "hover:bg-elevated"}
+                ${isRenaming && "border border-primary"}
             `}
             onClick={() => router.push(`/chat/${id}`, { scroll: false })}
         >
@@ -137,7 +139,7 @@ function AIChat({ id, name, renameChat, deleteChat }: AIChatProps) {
                     onClick={(e) => e.stopPropagation()}
                     onKeyDown={handleRenameKeyDown}
                     onBlur={saveRename}
-                    className="text-body-sm text-foreground-secondary w-full border-none outline-primary outline-1 rounded-lg py-1.5 px-2"
+                    className="text-body-sm text-foreground-secondary w-full border-none outline-none rounded-lg py-[3.5px]"
                 />
             ) : (
                 <p className="truncate text-body-sm text-foreground-secondary">
@@ -231,10 +233,18 @@ function AIChat({ id, name, renameChat, deleteChat }: AIChatProps) {
                                 bg-error/80 text-foreground rounded-lg px-5 py-3
                                 hover:bg-error hover:cursor-pointer
                             "
-                            onClick={(e) => {
-                                isSelected && router.replace("/chat");
+                            onClick={() => {
                                 setIsDeleting(false);
-                                deleteChat(id);
+
+                                if (isSelected) {
+                                    router.replace("/chat", { scroll: false });
+                                    window.requestAnimationFrame(() => {
+                                        void deleteChat(id);
+                                    });
+                                    return;
+                                }
+
+                                void deleteChat(id);
                             }}
                         >
                             {t("delete")}
@@ -249,7 +259,7 @@ function AIChat({ id, name, renameChat, deleteChat }: AIChatProps) {
 
 function GroupOfChats({ name, chats, renameChat, deleteChat }: GroupOfChatsProps) {
     return (
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-2">
             <p className="font-sans text-caption text-foreground-muted">{name}</p>
             <div className="flex flex-col">
                 {chats.map((chat) => (
@@ -268,18 +278,15 @@ function GroupOfChats({ name, chats, renameChat, deleteChat }: GroupOfChatsProps
 function groupChats(chats: Chat[]): GroupedChats {
     const now = new Date();
 
-    // Сегодня 00:00 в локальном часовом поясе пользователя
     const todayStart = new Date(
         now.getFullYear(),
         now.getMonth(),
         now.getDate()
     );
 
-    // Вчера 00:00
     const yesterdayStart = new Date(todayStart);
     yesterdayStart.setDate(yesterdayStart.getDate() - 1);
 
-    // 7 дней назад
     const sevenDaysAgo = new Date(todayStart);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
