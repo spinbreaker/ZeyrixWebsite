@@ -8,6 +8,7 @@ export function useVoiceRecorder({
     onRecordingFinished,
 }: UseVoiceRecorderOptions = {}) {
     const [isRecording, setIsRecording] = useState(false);
+    const [isTranscribing, setIsTranscribing] = useState(false);
     const isRecordingAbortedRef = useRef(false);
 
     const [waveform, setWaveform] = useState<number[]>([]);
@@ -122,7 +123,9 @@ export function useVoiceRecorder({
             });
 
             if (!isRecordingAbortedRef.current) {
+                setIsTranscribing(true);
                 await onRecordingFinished?.(blob);
+                setIsTranscribing(false);
             }
 
             isRecordingAbortedRef.current = false;
@@ -157,6 +160,7 @@ export function useVoiceRecorder({
 
     return {
         isRecording,
+        isTranscribing,
         waveform,
         startRecording,
         stopRecording,

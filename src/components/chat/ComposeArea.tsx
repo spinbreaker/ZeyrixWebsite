@@ -33,7 +33,7 @@ export function ComposeArea({ chatId, sendMessage, sending, createChat, isNewCha
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { attachments, addAttachment, removeAttachment, readyFileIds, isUploading, setAttachments, transcribeVoice } = useFileUpload();
 
-    const { isRecording, startRecording, stopRecording, waveform } = useVoiceRecorder({
+    const { isRecording, isTranscribing, startRecording, stopRecording, waveform } = useVoiceRecorder({
         onRecordingFinished: async (blob) => {
             const voiceFile = new File([blob], "voice.webm", {
                 type: blob.type,
@@ -42,6 +42,8 @@ export function ComposeArea({ chatId, sendMessage, sending, createChat, isNewCha
             const transcribed = await transcribeVoice(voiceFile);
 
             setMessage((prev) => `${prev.trim()} ${transcribed}`.trim())
+
+            requestAnimationFrame(resizeTextarea);
         }
     })
 
@@ -58,13 +60,16 @@ export function ComposeArea({ chatId, sendMessage, sending, createChat, isNewCha
         e.target.value = "";
     }
 
+    function resizeTextarea() {
+        if (!textareaRef.current) return;
+
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+
     function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-        const value = e.target.value;
-
-        setMessage(value);
-
-        e.target.style.height = "auto";
-        e.target.style.height = `${e.target.scrollHeight}px`;
+        setMessage(e.target.value);
+        resizeTextarea();
     }
 
     async function handleSend() {
@@ -107,6 +112,8 @@ export function ComposeArea({ chatId, sendMessage, sending, createChat, isNewCha
     const textareaPlaceholder = () => {
         if (!canInteract) {
             return t("connectingPlaceholder");
+        } else if (isTranscribing) {
+            return t("transcribingPlaceholder")
         } else if (isRecording) {
             return t("recordingPlaceholder");
         } else {
@@ -158,6 +165,7 @@ export function ComposeArea({ chatId, sendMessage, sending, createChat, isNewCha
                     rows={isNewChat ? 2 : 1}
                     className={`
                         w-full h-fit resize-none bg-transparent outline-none font-sans text-body text-foreground placeholder:text-foreground-muted max-h-50
+                        ${isTranscribing && "animate-pulse"}
                     `}
                 />
 
@@ -182,8 +190,11 @@ export function ComposeArea({ chatId, sendMessage, sending, createChat, isNewCha
                     >
                         <PlusIcon className="text-foreground-secondary size-4" />
                     </button>
-
-                    <div className="flex flex-row items-center justify-end gap-1 h-full flex-1 min-w-0 overflow-hidden">
+                    
+                    <div className={`
+                        flex flex-row items-center justify-end gap-1 h-full flex-1 min-w-0 overflow-hidden
+                        ${isTranscribing && "opacity-0"}
+                    `}>
                         {waveform.map((value, index) => (
                             <div
                                 key={index}
