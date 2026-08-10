@@ -1,73 +1,90 @@
 {
-    "notFoundMain": {
-        "title": "Бет табылмады",
-        "description": "Кешіріңіз, бірақ бұл бетті таба алмадық.",
-        "button": "Басты бет"
-    },
-    "notFoundChat": {
-        "title": "Чат табылмады",
-        "description": "Кешіріңіз, бірақ бұл чат жоқ немесе өшірілген сияқты.",
-        "button": "Чаттар"
-    },
-    "chat": {
-        "rename": "Атын өзгерту",
-        "delete": "Жою",
-        "deleteModalTitle": "Сенімдісіз бе?",
-        "deleteModalText": "Таңдалған чат қалпына келтіру мүмкіндігінсіз біржола жойылады.",
-        "cancel": "Бас тарту"
-    },
-    "sidebarHeader": {
-        "newChat": "Жаңа чат"
-    },
-    "sidebarChats": {
-        "failedChats": "Чаттарды алу сәтсіз аяқталды.",
-        "today": "Бүгін",
-        "yesterday": "Кеше",
-        "lastWeek": "Соңғы 7 күн",
-        "old": "Ескірек"
-    },
-    "sidebarFooter": {
-        "guest": "Қонақ"
-    },
-    "composeArea": {
-        "connectingPlaceholder": "Қосылуда...",
-        "standardPlaceholder": "ZeyrixAI-дан сұраңыз...",
-        "recordingPlaceholder": "Еркін сөйлей беріңіз, мен тыңдап тұрмын...",
-        "transcribingPlaceholder": "Сөзіңізді жазып алып жатырмын...",
-        "warningCaption": "ZeyrixAI — жасанды интеллект және қателіктер жіберуі мүмкін. Жауаптарды міндетті түрде тексеріңіз."
-    },
-    "toolApproval": {
-        "title": "Растау қажет",
-        "cancelled": "Бас тартылды",
-        "expired": "Мерзімі аяқталды",
-        "confirmed": "Расталды",
-        "failed": "Сәтсіз аяқталды",
-        "executed": "Орындалды",
-        "irreversible": "Қайтарылмайды",
-        "continue": "Жалғастыру",
-        "decline": "Қабылдамау",
-        "details": "Толығырақ",
-        "failedToLoad": "Қажетті құралды таңдау интерфейсін жүктеу мүмкін болмады.\nБетті қайта жүктеп көріңіз немесе бізбен байланысыңыз."
-    },
-    "message": {
-        "today": "Бүгін",
-        "yesterday": "Кеше"
-    },
-    "newChat": {
-        "title1": "Мен қалай көмектесе аламын?",
-        "title2": "Сіздің AI-көмекшіңіз",
-        "title3": "Идеялар осы жерден басталады",
-        "title4": "Неден бастаймыз?",
-        "title5": "Сіздің цифрлық серіктесіңіз",
-        "title6": "Ойлан. Жоспарла. Орында."
-    },
-    "agentSteps": { 
-        "m": "м", "s": "с",
-        "working": "Жұмыс істеп жатыр",
-        "worked": "Жұмыс істеді",
-        "awaiting": "Шешіміңізді күтіп тұрмын...",
-        "unknown": "Белгісіз",
-        "reasoning": "Ойланып жатыр",
-        "tool": "Құрал"
-    }
+  "notFoundMain": {
+    "title": "Бет табылмады",
+    "description": "Кешіріңіз, бірақ бұл бетті таба алмадық.",
+    "button": "Басты бет"
+  },
+  "notFoundChat": {
+    "title": "Чат табылмады",
+    "description": "Кешіріңіз, бірақ бұл чат жоқ немесе өшірілген сияқты.",
+    "button": "Чаттар"
+  },
+  "chat": {
+    "rename": "Атын өзгерту",
+    "delete": "Жою",
+    "deleteModalTitle": "Сенімдісіз бе?",
+    "deleteModalText": "Таңдалған чат қалпына келтіру мүмкіндігінсіз біржола жойылады.",
+    "cancel": "Бас тарту"
+  },
+  "sidebarHeader": {
+    "newChat": "Жаңа чат"
+  },
+  "sidebarChats": {
+    "failedChats": "Чаттарды алу сәтсіз аяқталды.",
+    "today": "Бүгін",
+    "yesterday": "Кеше",
+    "lastWeek": "Соңғы 7 күн",
+    "old": "Ескірек"
+  },
+  "sidebarFooter": {
+    "guest": "Қонақ"
+  },
+  "composeArea": {
+    "connectingPlaceholder": "Қосылуда...",
+    "standardPlaceholder": "ZeyrixAI-дан сұраңыз...",
+    "recordingPlaceholder": "Еркін сөйлей беріңіз, мен тыңдап тұрмын...",
+    "transcribingPlaceholder": "Сөзіңізді жазып алып жатырмын...",
+    "warningCaption": "ZeyrixAI — жасанды интеллект және қателіктер жіберуі мүмкін. Жауаптарды міндетті түрде тексеріңіз."
+  },
+  "toolApproval": {
+    "title": "Растау қажет",
+    "cancelled": "Бас тартылды",
+    "expired": "Мерзімі аяқталды",
+    "confirmed": "Расталды",
+    "failed": "Сәтсіз аяқталды",
+    "executed": "Орындалды",
+    "irreversible": "Қайтарылмайды",
+    "continue": "Жалғастыру",
+    "decline": "Қабылдамау",
+    "details": "Толығырақ",
+    "failedToLoad": "Қажетті құралды таңдау интерфейсін жүктеу мүмкін болмады.\nБетті қайта жүктеп көріңіз немесе бізбен байланысыңыз."
+  },
+  "message": {
+    "today": "Бүгін",
+    "yesterday": "Кеше"
+  },
+  "newChat": {
+    "title1": "Мен қалай көмектесе аламын?",
+    "title2": "Сіздің AI-көмекшіңіз",
+    "title3": "Идеялар осы жерден басталады",
+    "title4": "Неден бастаймыз?",
+    "title5": "Сіздің цифрлық серіктесіңіз",
+    "title6": "Ойлан. Жоспарла. Орында."
+  },
+  "agentSteps": {
+    "m": "м",
+    "s": "с",
+    "working": "Жұмыс істеп жатыр",
+    "worked": "Жұмыс істеді",
+    "awaiting": "Шешіміңізді күтіп тұрмын...",
+
+    "unknown": "Белгісіз",
+    "reasoning": "Ойланып жатыр",
+    "tool_call": "Құрал",
+    "file_transcribe": "File",
+
+    "tool_call_in_progress": "«{toolName}» құралын пайдаланып жатырмын",
+    "tool_call_done": "«{toolName}» құралы пайдаланылды",
+    "tool_call_error": "«{toolName}» құралын пайдалану сәтсіз аяқталды",
+    "tool_call_awaiting_approval": "«{toolName}» құралын пайдалануға рұқсат күтілуде",
+    "tool_call_denied": "«{toolName}» құралын пайдалануға тыйым салынды",
+    "tool_call_expired": "«{toolName}» құралын пайдалану уақыты аяқталды",
+    "reasoning_in_progress": "Ойланып жатырмын",
+    "reasoning_done": "Ойлану аяқталды",
+    "reasoning_error": "Ойлануды аяқтау сәтсіз аяқталды",
+    "file_transcribe_in_progress": "Файлды транскрипциялап жатырмын",
+    "file_transcribe_done": "Файл транскрипцияланды",
+    "file_transcribe_error": "Файлды транскрипциялау сәтсіз аяқталды",
+    "unknown_tool": "белгісіз құрал"
+  }
 }

@@ -1,73 +1,90 @@
 {
-    "notFoundMain": {
-        "title": "Страница не найдена",
-        "description": "Нам очень жаль, но мы не смогли найти эту страницу.",
-        "button": "На главную"
-    },
-    "notFoundChat": {
-        "title": "Чат не найден",
-        "description": "Нам очень жаль, но кажется, что такого чата не существует или он был удален.",
-        "button": "К чатам"
-    },
-    "chat": {
-        "rename": "Переименовать",
-        "delete": "Удалить",
-        "deleteModalTitle": "Вы уверены?",
-        "deleteModalText": "Выбранный чат будет навсегда удален без возможности восстановления.",
-        "cancel": "Отменить"
-    },
-    "sidebarHeader": {
-        "newChat": "Новый чат"
-    },
-    "sidebarChats": {
-        "failedChats": "Произошла ошибка при получении списка чатов.",
-        "today": "Сегодня",
-        "yesterday": "Вчера",
-        "lastWeek": "За последние 7 дней",
-        "old": "Старше"
-    },
-    "sidebarFooter": {
-        "guest": "Гость"
-    },
-    "composeArea": {
-        "connectingPlaceholder": "Подключение...",
-        "standardPlaceholder": "Спросите ZeyrixAI...",
-        "recordingPlaceholder": "Говорите, я вас слушаю...",
-        "transcribingPlaceholder": "Распознаю вашу речь...",
-        "warningCaption": "ZeyrixAI - это ИИ, и он может совершать ошибки. Пожалуйста, перепроверяйте ответы."
-    },
-    "toolApproval": {
-        "title": "Требуется подтверждение",
-        "cancelled": "Отменено",
-        "expired": "Истекло",
-        "confirmed": "Подтверждено",
-        "failed": "Произошла ошибка",
-        "executed": "Выполнено",
-        "irreversible": "Необратимо",
-        "continue": "Продолжить",
-        "decline": "Отменить",
-        "details": "Подробнее",
-        "failedToLoad": "Произошла ошибка при загрузке интерфейса.\nПопробуйте перезагрузить страницу или свяжитесь с нами."
-    },
-    "message": {
-        "today": "Сегодня",
-        "yesterday": "Вчера"
-    },
-    "newChat": {
-        "title1": "Чем я могу помочь?",
-        "title2": "Ваш AI-ассистент",
-        "title3": "Идеи начинаются здесь",
-        "title4": "С чего начнём?",
-        "title5": "Ваш цифровой партнёр",
-        "title6": "Думай. Планируй. Действуй."
-    },
-    "agentSteps": {
-        "m": "м", "s": "с",
-        "working": "Работаю уже",
-        "worked": "Выполнял запрос",
-        "awaiting": "Ожидаю вашего решения...",
-        "unknown": "Неизвестно",
-        "reasoning": "Рассуждение",
-        "tool": "Инструмент"
-    }
+  "notFoundMain": {
+    "title": "Страница не найдена",
+    "description": "Нам очень жаль, но мы не смогли найти эту страницу.",
+    "button": "На главную"
+  },
+  "notFoundChat": {
+    "title": "Чат не найден",
+    "description": "Нам очень жаль, но кажется, что такого чата не существует или он был удален.",
+    "button": "К чатам"
+  },
+  "chat": {
+    "rename": "Переименовать",
+    "delete": "Удалить",
+    "deleteModalTitle": "Вы уверены?",
+    "deleteModalText": "Выбранный чат будет навсегда удален без возможности восстановления.",
+    "cancel": "Отменить"
+  },
+  "sidebarHeader": {
+    "newChat": "Новый чат"
+  },
+  "sidebarChats": {
+    "failedChats": "Произошла ошибка при получении списка чатов.",
+    "today": "Сегодня",
+    "yesterday": "Вчера",
+    "lastWeek": "За последние 7 дней",
+    "old": "Старше"
+  },
+  "sidebarFooter": {
+    "guest": "Гость"
+  },
+  "composeArea": {
+    "connectingPlaceholder": "Подключение...",
+    "standardPlaceholder": "Спросите ZeyrixAI...",
+    "recordingPlaceholder": "Говорите, я вас слушаю...",
+    "transcribingPlaceholder": "Распознаю вашу речь...",
+    "warningCaption": "ZeyrixAI - это ИИ, и он может совершать ошибки. Пожалуйста, перепроверяйте ответы."
+  },
+  "toolApproval": {
+    "title": "Требуется подтверждение",
+    "cancelled": "Отменено",
+    "expired": "Истекло",
+    "confirmed": "Подтверждено",
+    "failed": "Произошла ошибка",
+    "executed": "Выполнено",
+    "irreversible": "Необратимо",
+    "continue": "Продолжить",
+    "decline": "Отменить",
+    "details": "Подробнее",
+    "failedToLoad": "Произошла ошибка при загрузке интерфейса.\nПопробуйте перезагрузить страницу или свяжитесь с нами."
+  },
+  "message": {
+    "today": "Сегодня",
+    "yesterday": "Вчера"
+  },
+  "newChat": {
+    "title1": "Чем я могу помочь?",
+    "title2": "Ваш AI-ассистент",
+    "title3": "Идеи начинаются здесь",
+    "title4": "С чего начнём?",
+    "title5": "Ваш цифровой партнёр",
+    "title6": "Думай. Планируй. Действуй."
+  },
+  "agentSteps": {
+    "m": "м",
+    "s": "с",
+    "working": "Работаю уже",
+    "worked": "Работал",
+    "awaiting": "Ожидаю вашего решения...",
+
+    "unknown": "Неизвестно",
+    "reasoning": "Рассуждение",
+    "tool_call": "Инструмент",
+    "file_transcribe": "File",
+
+    "tool_call_in_progress": "Использую «{toolName}»",
+    "tool_call_done": "Использовал «{toolName}»",
+    "tool_call_error": "Не удалось использовать «{toolName}»",
+    "tool_call_awaiting_approval": "Ожидаю разрешения на использование «{toolName}»",
+    "tool_call_denied": "Использование «{toolName}» запрещено",
+    "tool_call_expired": "Время использования «{toolName}» истекло",
+    "reasoning_in_progress": "Размышляю",
+    "reasoning_done": "Закончил размышление",
+    "reasoning_error": "Не удалось завершить размышление",
+    "file_transcribe_in_progress": "Расшифровываю файл",
+    "file_transcribe_done": "Файл расшифрован",
+    "file_transcribe_error": "Не удалось расшифровать файл",
+    "unknown_tool": "неизвестный инструмент"
+  }
 }
