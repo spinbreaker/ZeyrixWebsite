@@ -28,10 +28,14 @@ const nextConfig: NextConfig = {
   async rewrites() {
     const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8000";
 
-    return [
-      { source: "/api/:path*", destination: `${backendUrl}/v1/:path*` },
-    ];
+    return [{ source: "/api/:path*", destination: `${backendUrl}/v1/:path*` }];
   },
+  allowedDevOrigins: [
+    // '*.ngrok-free.app',
+    // '*.ngrok.io',
+    // '*.ngrok-free.dev',
+    "pleasedly-fossillike-arlena.ngrok-free.dev",
+  ],
 };
 
 const withNextIntl = createNextIntlPlugin();
