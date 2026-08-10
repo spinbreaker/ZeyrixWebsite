@@ -7,121 +7,123 @@ import RenameIcon from "@/src/icons/rename.svg";
 import DeleteIcon from "@/src/icons/delete.svg";
 import { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { createPortal } from "react-dom";
 
-type RenameAndDelete = {
-    renameChat: (chatId: string, newTitle: string) => Promise<undefined>;
-    deleteChat: (chatId: string) => Promise<undefined>;
-}
-
-type GroupOfChatsProps = RenameAndDelete & {
-    name: string;
-    chats: Chat[];
+type GlobalProps = {
+  renameChat: (chatId: string, newTitle: string) => Promise<undefined>;
+  deleteChat: (chatId: string) => Promise<undefined>;
+  onClose?: () => void;
 };
 
-type SidebarChatsProps = RenameAndDelete & {
-    chats: Chat[];
-}
+type GroupOfChatsProps = GlobalProps & {
+  name: string;
+  chats: Chat[];
+};
+
+type SidebarChatsProps = GlobalProps & {
+  chats: Chat[];
+};
 
 type GroupedChats = {
-    todayChats: Chat[];
-    yesterdayChats: Chat[];
-    lastDaysChats: Chat[];
-    oldChats: Chat[];
+  todayChats: Chat[];
+  yesterdayChats: Chat[];
+  lastDaysChats: Chat[];
+  oldChats: Chat[];
 };
 
-type AIChatProps = Chat & RenameAndDelete
+type AIChatProps = Chat & GlobalProps;
 
-function AIChat({ id, name, renameChat, deleteChat }: AIChatProps) {
-    const t = useTranslations("chat");
-    const router = useRouter();
-    const params = useParams<{ chatId?: string | string[] }>();
-	const currentChatId = Array.isArray(params.chatId) ? params.chatId[0] : params.chatId;
-    const isSelected = currentChatId === id;
+function AIChat({ id, name, renameChat, deleteChat, onClose }: AIChatProps) {
+  const t = useTranslations("chat");
+  const router = useRouter();
+  const params = useParams<{ chatId?: string | string[] }>();
+  const currentChatId = Array.isArray(params.chatId)
+    ? params.chatId[0]
+    : params.chatId;
+  const isSelected = currentChatId === id;
 
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isRenaming, setIsRenaming] = useState(false);
-    const [title, setTitle] = useState(name);
-    const [isDeleting, setIsDeleting] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [title, setTitle] = useState(name);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-    const inputRef = useRef<HTMLInputElement>(null);
-    const menuRef = useRef<HTMLDivElement>(null);
-    const dotsRef = useRef<HTMLSpanElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const dotsRef = useRef<HTMLSpanElement>(null);
 
-    const startRename = () => {
-        setIsMenuOpen(false);
-        setIsRenaming(true);
+  const startRename = () => {
+    setIsMenuOpen(false);
+    setIsRenaming(true);
+  };
+
+  useEffect(() => {
+    setTitle(name);
+  }, [name]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node;
+
+      const clickedInsideMenu = menuRef.current?.contains(target);
+      const clickedDots = dotsRef.current?.contains(target);
+
+      if (clickedInsideMenu || clickedDots) return;
+
+      setIsMenuOpen(false);
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
     };
+  }, []);
 
-    useEffect(() => {
-        setTitle(name);
-    }, [name]);
+  useEffect(() => {
+    if (isRenaming) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [isRenaming]);
 
-    useEffect(() => {
-        function handleClickOutside(e: MouseEvent) {
-            const target = e.target as Node;
+  const saveRename = async () => {
+    const newTitle = title.trim();
 
-            const clickedInsideMenu = menuRef.current?.contains(target);
-            const clickedDots = dotsRef.current?.contains(target);
-            
-            if (clickedInsideMenu || clickedDots) return;
+    if (!newTitle || newTitle === name) {
+      setTitle(name);
+      setIsRenaming(false);
+      return;
+    }
 
-            setIsMenuOpen(false);
-        }
+    try {
+      await renameChat(id, newTitle);
 
-        document.addEventListener("mousedown", handleClickOutside);
+      setIsRenaming(false);
+    } catch {
+      setTitle(name);
+      setIsRenaming(false);
+    }
+  };
 
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, []);
+  const cancelRename = () => {
+    setTitle(name);
+    setIsRenaming(false);
+  };
 
-    useEffect(() => {
-        if (isRenaming) {
-            inputRef.current?.focus();
-            inputRef.current?.select();
-        }
-    }, [isRenaming]);
+  const handleRenameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      saveRename();
+    }
 
-    const saveRename = async () => {
-        const newTitle = title.trim();
+    if (e.key === "Escape") {
+      cancelRename();
+    }
+  };
 
-        if (!newTitle || newTitle === name) {
-            setTitle(name);
-            setIsRenaming(false);
-            return;
-        }
-
-        try {
-            await renameChat(id, newTitle);
-
-            setIsRenaming(false);
-        } catch {
-            setTitle(name);
-            setIsRenaming(false);
-        }
-    };
-
-    const cancelRename = () => {
-        setTitle(name);
-        setIsRenaming(false);
-    };
-
-    const handleRenameKeyDown = (
-        e: React.KeyboardEvent<HTMLInputElement>
-    ) => {
-        if (e.key === "Enter") {
-            saveRename();
-        }
-
-        if (e.key === "Escape") {
-            cancelRename();
-        }
-    };
-
-    return (
-        <>
-        <button
-            className={`
+  return (
+    <>
+      <button
+        className={`
                 relative group
                 flex flex-row justify-between pl-2 py-1.5 items-center w-full rounded-md
                 ${isSelected && "bg-surface border-l-2 border-primary"}
@@ -129,221 +131,260 @@ function AIChat({ id, name, renameChat, deleteChat }: AIChatProps) {
                 ${!isSelected && "hover:bg-elevated"}
                 ${isRenaming && "border border-primary"}
             `}
-            onClick={() => router.push(`/chat/${id}`, { scroll: false })}
-        >
-            {isRenaming ? (
-                <input
-                    ref={inputRef}
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={handleRenameKeyDown}
-                    onBlur={saveRename}
-                    className="text-body-sm text-foreground-secondary w-full border-none outline-none rounded-lg py-[3.5px]"
-                />
-            ) : (
-                <p className="truncate text-body-sm text-foreground-secondary">
-                    {title}
-                </p>
-            )}
-            
-            <span
-                className={`
+        onClick={() => {
+          router.push(`/chat/${id}`, { scroll: false });
+          if (onClose) {
+            onClose();
+          }
+        }}
+      >
+        {isRenaming ? (
+          <input
+            ref={inputRef}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={handleRenameKeyDown}
+            onBlur={saveRename}
+            className="text-body-sm text-foreground-secondary w-full border-none outline-none rounded-lg py-[3.5px]"
+          />
+        ) : (
+          <p className="truncate text-body-sm text-foreground-secondary">
+            {title}
+          </p>
+        )}
+
+        <span
+          className={`
                     p-2 hover:bg-border rounded-lg
                     ${isMenuOpen ? "bg-border opacity-100" : "lg:opacity-0 group-hover:opacity-100"}
                     ${isRenaming && "hidden"}
                 `}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    setIsMenuOpen((prev) => !prev);
-                }}
-                ref={dotsRef}
-            >
-                <DotsIcon className="text-foreground size-3" />
-            </span>
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setIsMenuOpen((prev) => !prev);
+          }}
+          ref={dotsRef}
+        >
+          <DotsIcon className="text-foreground size-3" />
+        </span>
 
-            {isMenuOpen && (
-                <div
-                    className="
+        {isMenuOpen && (
+          <div
+            className="
                         absolute top-10 right-0 z-50
                         p-1 bg-elevated border border-border rounded-lg
                         flex flex-col w-fit h-fit gap-1 cursor-default
                     "
-                    onClick={(e) => {
-                        e.stopPropagation();
-                    }}
-                    ref={menuRef}
-                >
-                    <span 
-                        className="
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            ref={menuRef}
+          >
+            <span
+              className="
                             flex items-center px-3 py-2 gap-3 hover:bg-border rounded-lg
                             hover:cursor-pointer
                         "
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            startRename();
-                        }}
-                    >
-                        <RenameIcon className="text-foreground size-4" />
-                        <p className="text-foreground text-body">
-                            {t("rename")}
-                        </p>
-                    </span>
+              onClick={(e) => {
+                e.stopPropagation();
+                startRename();
+              }}
+            >
+              <RenameIcon className="text-foreground size-4" />
+              <p className="text-foreground text-body">{t("rename")}</p>
+            </span>
 
-                    <span 
-                        className="
+            <span
+              className="
                             flex items-center px-3 py-2 gap-3 rounded-lg text-error
                             hover:bg-error/80 hover:text-foreground hover:cursor-pointer
                         "
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setIsMenuOpen(false);
-                            setIsDeleting(true);
-                        }}
-                    >
-                        <DeleteIcon className="size-4" />
-                        <p className="text-body">
-                            {t("delete")}
-                        </p>
-                    </span>
-                </div>
-            )}
-        </button>
-        
-        {isDeleting && (
-            <div className="fixed inset-0 flex items-center justify-center bg-black/90 z-999">
-                <div className="bg-surface border-border p-6 rounded-2xl shadow-lg flex flex-col max-w-100 justify-center gap-3">
-                    <h3 className="text-foreground text-h3">{t("deleteModalTitle")}</h3>
-                    <p className="text-foreground-secondary text-body">{t("deleteModalText")}</p>
-                    <div className="flex flex-row justify-end gap-6">
-                        <button 
-                            className="
-                                border border-border rounded-lg px-5 py-3 text-foreground
-                                hover:bg-elevated hover:cursor-pointer
-                            "
-                            onClick={(e) => {
-                                setIsDeleting(false);
-                            }}
-                        >
-                            {t("cancel")}
-                        </button>
-                        <button 
-                            className="
-                                bg-error/80 text-foreground rounded-lg px-5 py-3
-                                hover:bg-error hover:cursor-pointer
-                            "
-                            onClick={() => {
-                                setIsDeleting(false);
-
-                                if (isSelected) {
-                                    router.replace("/chat", { scroll: false });
-                                    window.requestAnimationFrame(() => {
-                                        void deleteChat(id);
-                                    });
-                                    return;
-                                }
-
-                                void deleteChat(id);
-                            }}
-                        >
-                            {t("delete")}
-                        </button>
-                    </div>
-                </div>
-            </div>
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMenuOpen(false);
+                setIsDeleting(true);
+              }}
+            >
+              <DeleteIcon className="size-4" />
+              <p className="text-body">{t("delete")}</p>
+            </span>
+          </div>
         )}
-        </>
-    );
+      </button>
+
+      {isDeleting && createPortal(
+        <div className="fixed inset-0 flex items-center justify-center bg-black/90 z-999">
+          <div className="bg-surface border-border p-6 rounded-2xl shadow-lg flex flex-col max-w-100 justify-center gap-3">
+            <h3 className="text-foreground text-h3">{t("deleteModalTitle")}</h3>
+            <p className="text-foreground-secondary text-body">
+              {t("deleteModalText")}
+            </p>
+            <div className="flex flex-row justify-end gap-6">
+              <button
+                className="
+                  border border-border rounded-lg px-5 py-3 text-foreground
+                  hover:bg-elevated hover:cursor-pointer
+                "
+                onClick={(e) => {
+                  setIsDeleting(false);
+                }}
+              >
+                {t("cancel")}
+              </button>
+              <button
+                className="
+                  bg-error/80 text-foreground rounded-lg px-5 py-3
+                  hover:bg-error hover:cursor-pointer
+                "
+                onClick={() => {
+                  setIsDeleting(false);
+
+                  if (isSelected) {
+                    router.replace("/chat", {
+                      scroll: false,
+                    });
+                    window.requestAnimationFrame(() => {
+                      void deleteChat(id);
+                    });
+                    return;
+                  }
+
+                  void deleteChat(id);
+                }}
+              >
+                {t("delete")}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
 }
 
-function GroupOfChats({ name, chats, renameChat, deleteChat }: GroupOfChatsProps) {
-    return (
-        <div className="flex flex-col gap-2">
-            <p className="font-sans text-caption text-foreground-muted">{name}</p>
-            <div className="flex flex-col">
-                {chats.map((chat) => (
-                    <AIChat
-                        key={chat.id}
-                        {...chat}
-                        renameChat={renameChat}
-                        deleteChat={deleteChat}
-                    />
-                ))}
-            </div>
-        </div>
-    );
+function GroupOfChats({
+  name,
+  chats,
+  renameChat,
+  deleteChat,
+  onClose,
+}: GroupOfChatsProps) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="font-sans text-caption text-foreground-muted">{name}</p>
+      <div className="flex flex-col">
+        {chats.map((chat) => (
+          <AIChat
+            key={chat.id}
+            {...chat}
+            renameChat={renameChat}
+            deleteChat={deleteChat}
+            onClose={onClose}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function groupChats(chats: Chat[]): GroupedChats {
-    const now = new Date();
+  const now = new Date();
 
-    const todayStart = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate()
-    );
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    const yesterdayStart = new Date(todayStart);
-    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
 
-    const sevenDaysAgo = new Date(todayStart);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgo = new Date(todayStart);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const todayChats: Chat[] = [];
-    const yesterdayChats: Chat[] = [];
-    const lastDaysChats: Chat[] = [];
-    const oldChats: Chat[] = [];
+  const todayChats: Chat[] = [];
+  const yesterdayChats: Chat[] = [];
+  const lastDaysChats: Chat[] = [];
+  const oldChats: Chat[] = [];
 
-    for (const chat of chats) {
-        const createdAt = new Date(chat.updatedAt);
+  for (const chat of chats) {
+    const createdAt = new Date(chat.updatedAt);
 
-        if (createdAt >= todayStart) {
-            todayChats.push(chat);
-        } else if (createdAt >= yesterdayStart) {
-            yesterdayChats.push(chat);
-        } else if (createdAt >= sevenDaysAgo) {
-            lastDaysChats.push(chat);
-        } else {
-            oldChats.push(chat);
-        }
+    if (createdAt >= todayStart) {
+      todayChats.push(chat);
+    } else if (createdAt >= yesterdayStart) {
+      yesterdayChats.push(chat);
+    } else if (createdAt >= sevenDaysAgo) {
+      lastDaysChats.push(chat);
+    } else {
+      oldChats.push(chat);
     }
+  }
 
-    return {
-        todayChats,
-        yesterdayChats,
-        lastDaysChats,
-        oldChats,
-    };
+  return {
+    todayChats,
+    yesterdayChats,
+    lastDaysChats,
+    oldChats,
+  };
 }
 
-export function SidebarChats({ chats, deleteChat, renameChat }: SidebarChatsProps) {
-    const t = useTranslations("sidebarChats")
+export function SidebarChats({
+  chats,
+  deleteChat,
+  renameChat,
+  onClose,
+}: SidebarChatsProps) {
+  const t = useTranslations("sidebarChats");
 
-    if (!chats) {
-        return (
-            <div className="flex-1 overflow-y-auto px-6 pt-3 flex flex-col gap-3">
-                <p className="text-body text-error">{t("failedChats")}</p>
-            </div>
-        );
-    }
-
-    const { todayChats, yesterdayChats, lastDaysChats, oldChats } = groupChats(chats)
-
+  if (!chats) {
     return (
-        <div className="flex-1 overflow-y-auto px-6 pt-3 flex flex-col gap-3">
-            {todayChats.length > 0 && (
-                <GroupOfChats name={t("today")} chats={todayChats} renameChat={renameChat} deleteChat={deleteChat} />
-            )}
-            {yesterdayChats.length > 0 && (
-                <GroupOfChats name={t("yesterday")} chats={yesterdayChats} renameChat={renameChat} deleteChat={deleteChat} />
-            )}
-            {lastDaysChats.length > 0 && (
-                <GroupOfChats name={t("lastWeek")} chats={lastDaysChats} renameChat={renameChat} deleteChat={deleteChat} />
-            )}
-            {oldChats.length > 0 && (
-                <GroupOfChats name={t("old")} chats={oldChats} renameChat={renameChat} deleteChat={deleteChat} />
-            )}
-        </div>
+      <div className="flex-1 overflow-y-auto px-6 pt-3 flex flex-col gap-3">
+        <p className="text-body text-error">{t("failedChats")}</p>
+      </div>
     );
+  }
+
+  const { todayChats, yesterdayChats, lastDaysChats, oldChats } =
+    groupChats(chats);
+
+  return (
+    <div className="flex-1 overflow-y-auto px-6 pt-3 flex flex-col gap-3">
+      {todayChats.length > 0 && (
+        <GroupOfChats
+          name={t("today")}
+          chats={todayChats}
+          renameChat={renameChat}
+          deleteChat={deleteChat}
+          onClose={onClose}
+        />
+      )}
+      {yesterdayChats.length > 0 && (
+        <GroupOfChats
+          name={t("yesterday")}
+          chats={yesterdayChats}
+          renameChat={renameChat}
+          deleteChat={deleteChat}
+          onClose={onClose}
+        />
+      )}
+      {lastDaysChats.length > 0 && (
+        <GroupOfChats
+          name={t("lastWeek")}
+          chats={lastDaysChats}
+          renameChat={renameChat}
+          deleteChat={deleteChat}
+          onClose={onClose}
+        />
+      )}
+      {oldChats.length > 0 && (
+        <GroupOfChats
+          name={t("old")}
+          chats={oldChats}
+          renameChat={renameChat}
+          deleteChat={deleteChat}
+          onClose={onClose}
+        />
+      )}
+    </div>
+  );
 }
