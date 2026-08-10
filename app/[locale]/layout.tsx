@@ -35,9 +35,9 @@ export const metadata: Metadata = {
 };
 
 export function generateStaticParams() {
-    return routing.locales.map((locale) => ({
-        locale,
-    }));
+  return routing.locales.map((locale) => ({
+    locale,
+  }));
 }
 
 export default async function RootLayout({
@@ -58,11 +58,14 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={`${inter.variable} ${antonSC.variable} ${oswald.variable}`}>
+    <html
+      lang={locale}
+      className={`${inter.variable} ${antonSC.variable} ${oswald.variable}`}
+    >
       <body className="font-sans antialiased bg-background text-foreground">
         <NextIntlClientProvider messages={messages}>
-          <ConnectionProvider>  
-              <AuthGate>{children}</AuthGate>
+          <ConnectionProvider>
+            <AuthGate>{children}</AuthGate>
           </ConnectionProvider>
         </NextIntlClientProvider>
       </body>

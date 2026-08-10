@@ -19,7 +19,13 @@ export default function TurnstileWidget({ onSuccess }: TurnstileWidgetProps) {
   const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
-    if (!scriptLoaded || !containerRef.current || widgetIdRef.current || blocked) return;
+    if (
+      !scriptLoaded ||
+      !containerRef.current ||
+      widgetIdRef.current ||
+      blocked
+    )
+      return;
 
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
       sitekey: SITE_KEY,
@@ -45,7 +51,9 @@ export default function TurnstileWidget({ onSuccess }: TurnstileWidgetProps) {
     attemptsRef.current += 1;
 
     if (attemptsRef.current >= MAX_ATTEMPTS) {
-      setErrorMsg("Не удалось создать сессию. Попробуйте обновить страницу позже.");
+      setErrorMsg(
+        "Не удалось создать сессию. Попробуйте обновить страницу позже.",
+      );
       setBlocked(true);
       if (widgetIdRef.current) {
         window.turnstile.remove(widgetIdRef.current);
@@ -54,7 +62,9 @@ export default function TurnstileWidget({ onSuccess }: TurnstileWidgetProps) {
       return;
     }
 
-    setErrorMsg(`${message} Осталось попыток: ${MAX_ATTEMPTS - attemptsRef.current}.`);
+    setErrorMsg(
+      `${message} Осталось попыток: ${MAX_ATTEMPTS - attemptsRef.current}.`,
+    );
     if (widgetIdRef.current) window.turnstile.reset(widgetIdRef.current);
   }
 
@@ -88,9 +98,7 @@ export default function TurnstileWidget({ onSuccess }: TurnstileWidgetProps) {
         onLoad={() => setScriptLoaded(true)}
       />
       {!blocked && <div ref={containerRef} />}
-      {errorMsg && (
-        <p className="text-caption text-red-400 mt-2">{errorMsg}</p>
-      )}
+      {errorMsg && <p className="text-caption text-red-400 mt-2">{errorMsg}</p>}
     </>
   );
 }

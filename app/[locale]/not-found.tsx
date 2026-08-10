@@ -8,21 +8,21 @@ export default function NotFound() {
   const t = useTranslations("notFoundMain");
 
   return (
-    <main className="
+    <main
+      className="
       min-h-screen
       flex items-center justify-center
-    ">
-      <section className="
+    "
+    >
+      <section
+        className="
         text-center
         max-w-sm
-      ">
-        <div className="font-display-en text-display">
-          404
-        </div>
+      "
+      >
+        <div className="font-display-en text-display">404</div>
 
-        <h2 className="mt-4 text-h2">
-          {t("title")}
-        </h2>
+        <h2 className="mt-4 text-h2">{t("title")}</h2>
 
         <p className="mt-2 text-body text-foreground-secondary">
           {t("description")}

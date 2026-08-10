@@ -47,7 +47,9 @@ export async function deleteCachedImage(fileId: string) {
 }
 
 // Опционально: очистка старых записей, чтобы не разрастаться бесконечно
-export async function pruneOldImages(maxAgeMs: number = 30 * 24 * 60 * 60 * 1000) {
+export async function pruneOldImages(
+  maxAgeMs: number = 30 * 24 * 60 * 60 * 1000,
+) {
   const db = await getDB();
   const all = await db.getAll("images");
   const cutoff = Date.now() - maxAgeMs;

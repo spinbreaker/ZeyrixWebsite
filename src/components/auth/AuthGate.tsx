@@ -96,7 +96,11 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }
 
   if (authState === "checking") {
-    return showSplash ? <SplashScreen /> : <div className="fixed inset-0 bg-background" />;
+    return showSplash ? (
+      <SplashScreen />
+    ) : (
+      <div className="fixed inset-0 bg-background" />
+    );
   }
 
   if (authState === "error") {
@@ -105,7 +109,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         <p className="text-body-sm text-foreground-muted">
           Не удалось подключиться к серверу.
         </p>
-        <button onClick={handleManualRetry} className="text-btn text-primary underline hover:cursor-pointer">
+        <button
+          onClick={handleManualRetry}
+          className="text-btn text-primary underline hover:cursor-pointer"
+        >
           Повторить
         </button>
       </SplashScreen>
@@ -115,10 +122,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   if (authState === "needs_turnstile") {
     return (
       <SplashScreen>
-        <TurnstileWidget onSuccess={() => {
-          sessionStorage.setItem(CACHE_KEY, "true");
-          setAuthState("authenticated");
-        }} />
+        <TurnstileWidget
+          onSuccess={() => {
+            sessionStorage.setItem(CACHE_KEY, "true");
+            setAuthState("authenticated");
+          }}
+        />
       </SplashScreen>
     );
   }

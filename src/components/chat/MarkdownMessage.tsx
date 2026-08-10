@@ -13,25 +13,37 @@ export const MarkdownMessage = memo(function MarkdownMessage({ text }: Props) {
   const components = useMemo(
     () => ({
       h1: ({ children }: any) => (
-        <h1 className="text-h1 text-foreground mt-6 mb-3 first:mt-0">{children}</h1>
+        <h1 className="text-h1 text-foreground mt-6 mb-3 first:mt-0">
+          {children}
+        </h1>
       ),
       h2: ({ children }: any) => (
-        <h2 className="text-h2 text-foreground mt-5 mb-2 first:mt-0">{children}</h2>
+        <h2 className="text-h2 text-foreground mt-5 mb-2 first:mt-0">
+          {children}
+        </h2>
       ),
       h3: ({ children }: any) => (
-        <h3 className="text-h3 text-foreground mt-4 mb-2 first:mt-0">{children}</h3>
+        <h3 className="text-h3 text-foreground mt-4 mb-2 first:mt-0">
+          {children}
+        </h3>
       ),
       h4: ({ children }: any) => (
-        <h4 className="text-h4 text-foreground mt-4 mb-1.5 first:mt-0">{children}</h4>
+        <h4 className="text-h4 text-foreground mt-4 mb-1.5 first:mt-0">
+          {children}
+        </h4>
       ),
       p: ({ children }: any) => (
-        <p className="text-body text-foreground my-2 first:mt-0 last:mb-0">{children}</p>
+        <p className="text-body text-foreground my-2 first:mt-0 last:mb-0">
+          {children}
+        </p>
       ),
       ul: ({ children }: any) => (
         <ul className="my-2 ml-5 list-disc space-y-1 text-body">{children}</ul>
       ),
       ol: ({ children }: any) => (
-        <ol className="my-2 ml-5 list-decimal space-y-1 text-body">{children}</ol>
+        <ol className="my-2 ml-5 list-decimal space-y-1 text-body">
+          {children}
+        </ol>
       ),
       li: ({ children }: any) => (
         <li className="text-body text-foreground leading-[1.65]">{children}</li>
@@ -76,7 +88,9 @@ export const MarkdownMessage = memo(function MarkdownMessage({ text }: Props) {
           </table>
         </div>
       ),
-      thead: ({ children }: any) => <thead className="bg-elevated">{children}</thead>,
+      thead: ({ children }: any) => (
+        <thead className="bg-elevated">{children}</thead>
+      ),
       tbody: ({ children }: any) => (
         <tbody className="divide-y divide-border">{children}</tbody>
       ),
@@ -135,7 +149,7 @@ export const MarkdownMessage = memo(function MarkdownMessage({ text }: Props) {
         );
       },
     }),
-    []
+    [],
   );
 
   return (

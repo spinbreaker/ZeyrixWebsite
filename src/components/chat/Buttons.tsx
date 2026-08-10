@@ -24,14 +24,14 @@ export function CopyButton({ content }: { content: string }) {
 
   return (
     <button
-        className="size-8 flex items-center justify-center rounded-lg hover:bg-elevated hover:cursor-pointer"
-        onClick={handleCopy}
+      className="size-8 flex items-center justify-center rounded-lg hover:bg-elevated hover:cursor-pointer"
+      onClick={handleCopy}
     >
-        {copied ? (
-            <ConfirmedIcon className="text-foreground size-3" />
-        ) : (
-            <CopyIcon className="text-foreground size-4" />
-        )}
+      {copied ? (
+        <ConfirmedIcon className="text-foreground size-3" />
+      ) : (
+        <CopyIcon className="text-foreground size-4" />
+      )}
     </button>
   );
 }

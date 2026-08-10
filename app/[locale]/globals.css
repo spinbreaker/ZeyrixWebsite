@@ -2,31 +2,33 @@
 
 @theme {
   /* PrimaryDark */
-  --color-primary: #FFD600;
-  --color-primary-hover: #FFE040;
-  --color-primary-active: #FFC400;
-  --color-primary-surface: #241E0A;
+  --color-primary: #ffd600;
+  --color-primary-hover: #ffe040;
+  --color-primary-active: #ffc400;
+  --color-primary-surface: #241e0a;
   --color-primary-outline: #987500;
 
   /* Dark */
   --color-background: #121212;
-  --color-surface: #1A1A1C;
+  --color-surface: #1a1a1c;
   --color-elevated: #232326;
   --color-border: #343438;
-  --color-foreground-muted: #8A8A92;
-  --color-foreground-secondary: #DFDFDF;
-  --color-foreground: #FAFAFA;
+  --color-foreground-muted: #8a8a92;
+  --color-foreground-secondary: #dfdfdf;
+  --color-foreground: #fafafa;
 
   /* Semantic */
-  --color-error: #EF4444;
-  --color-warning: #F59E0B;
-  --color-success: #22C55E;
-  --color-info: #3B82F6;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-success: #22c55e;
+  --color-info: #3b82f6;
 
   /* Font Families */
   --font-display-en: "Anton SC", system-ui, sans-serif;
   --font-display-ru: "Oswald", system-ui, sans-serif;
-  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans:
+    "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
 
   /* Display */
   --text-display: clamp(28px, 23px + 1.33vw, 40px);
@@ -130,18 +132,18 @@
 }
 
 ::-webkit-scrollbar {
-    width: 8px;
+  width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: transparent;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #333333;
-    border-radius: 999px;
+  background: #333333;
+  border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #444444;
+  background: #444444;
 }
