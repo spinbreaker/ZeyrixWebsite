@@ -1,5 +1,12 @@
-type StepStatus = "in_progress" | "done" | "error" | "awaiting_approval" | "denied" | "expired"
-type StepKind = "tool_call" | "reasoning" | "file_transcribe"
+export type StepStatus = "in_progress" | "done" | "error" | "awaiting_approval" | "denied" | "expired"
+export type StepKind = "tool_call" | "reasoning" | "file_transcribe"
+
+export type ToolDetails = {
+  auditLogId?: string;
+  tableName?: string;
+  rowsAffected?: number;
+  arguments?: string;
+}
 
 export interface AgentStep {
   id: string;
@@ -8,6 +15,7 @@ export interface AgentStep {
   status: StepStatus;
   approvalDetails?: ApprovalDetails;
   toolName?: string;
+  toolDetails?: ToolDetails;
   isLast?: boolean;
 }
 
