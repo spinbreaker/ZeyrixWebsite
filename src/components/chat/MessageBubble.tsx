@@ -4,12 +4,14 @@ import LikeIcon from "@/src/icons/like.svg";
 import WarningIcon from "@/src/icons/warning.svg";
 import ArrowIcon from "@/src/icons/arrowBasic.svg";
 import ConfirmedIcon from "@/src/icons/check.svg";
-import DeclinedIcon from "@/src/icons/close.svg";
+import CloseIcon from "@/src/icons/close.svg";
 import ExpiredIcon from "@/src/icons/time.svg";
 import InProgressIcon from "@/src/icons/in_progress.svg";
 import DoneIcon from "@/src/icons/done.svg";
 import CancelledIcon from "@/src/icons/cancelled.svg";
 import AwaitingIcon from "@/src/icons/time.svg";
+import ToolIcon from "@/src/icons/tool.svg";
+import ReasoningIcon from "@/src/icons/idea.svg";
 
 import { MessageAttachment } from "./Attachment";
 import {
@@ -17,7 +19,11 @@ import {
   Attachment,
   AgentStep,
   ApprovalDetails,
+  ToolDetails,
+  StepKind,
+  StepStatus,
 } from "@/src/types/chat";
+
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslations, useLocale } from "next-intl";
@@ -25,6 +31,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { getDateFnsLocale } from "@/src/lib/date-fns-locale";
 import { MarkdownMessage } from "./MarkdownMessage";
 import { CopyButton } from "./Buttons";
+import { useStep } from "@/src/hooks/useStep";
 
 function formatMessageTime(dateString: string): string {
   const t = useTranslations("message");
@@ -282,7 +289,7 @@ function ApprovalCard({
           </div>
         ) : status === "rejected" ? (
           <div className="mt-7 flex flex-row gap-2 items-center">
-            <DeclinedIcon className="text-error size-4" />
+            <CloseIcon className="text-error size-4" />
             <p className="text-body text-error">
               {t("cancelled")} {appliedAt ? timeAgo(new Date(appliedAt)) : ""}
             </p>
@@ -314,8 +321,107 @@ function ApprovalCard({
   );
 }
 
-function Step({ kind, label, status, toolName, isLast }: AgentStep) {
+function StepOverlay(
+  { kind, status, toolName, toolDetails, onClose }: 
+  { kind: StepKind, status: StepStatus, toolName?: string, toolDetails?: ToolDetails, onClose: () => void }
+) {
+  const { error, undoTool } = useStep()
+  const [isUndone, setIsUndone] = useState(false);
+  const [isUndoing, setIsUndoing] = useState(false);
+
+  return (
+    <div
+      className="fixed inset-0 z-999 flex items-center justify-center bg-black/90 cursor-auto p-3"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-110 bg-surface rounded-2xl relative flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div 
+          className="absolute top-0 right-0 p-4 hover:cursor-pointer bg-surface rounded-2xl"
+          onClick={onClose}
+        >
+          <CloseIcon className="size-3 text-foreground-muted" />
+        </div>
+
+        {kind === "tool_call" ? (
+          <>
+          <div className="flex flex-col w-fit items-start p-3">
+            <div className="flex flex-row  text-foreground gap-2 min-w-0 w-full">
+              <ToolIcon className="size-5" />
+              <h4 className="text-h4 truncate min-w-0 flex-1">Tool "{toolName}"</h4>
+            </div>
+            <p className="text-caption text-foreground-secondary">{status} · 0.6 seconds</p>
+          </div>
+
+          {toolDetails ? (
+            <div className="p-6 flex flex-col gap-10">
+              <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-3">
+                  <h4 className="text-h4 text-foreground-secondary">Params preview:</h4>
+                  <div className="bg-background rounded-md p-3 text-caption font-mono">
+                    <pre className="whitespace-pre-wrap break-all m-0">
+                      {toolDetails.arguments}
+                    </pre>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <h4 className="text-h4 text-foreground-secondary">Result:</h4>
+                  <div className="bg-background rounded-md p-3 text-caption font-mono">
+                    <pre className="whitespace-pre-wrap break-all m-0">
+                      {toolDetails.rowsAffected} data rows affected
+                    </pre>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center gap-2">
+                <button 
+                  className={`
+                    w-full py-3 rounded-lg text-background bg-primary 
+                    ${["delete", "update", "insert"].includes(toolName ?? "") && toolDetails.auditLogId && !isUndone && !isUndoing ? "hover:cursor-pointer hover:bg-primary-hover" : "opacity-50"}
+                    ${isUndoing && "bg-primary-active"}
+                  `}
+                  disabled={!["delete", "update", "insert"].includes(toolName ?? "") || !toolDetails.auditLogId || isUndone || isUndoing}
+                  onClick={async () => {
+                    if (toolDetails.auditLogId) {
+                      try {
+                        setIsUndoing(true);
+                        await undoTool(toolDetails.auditLogId, setIsUndone);
+                      } catch {
+
+                      } finally {
+                        setIsUndoing(false);
+                      }
+                    }
+                  }}
+                >
+                  {isUndone ? "Action undone" : isUndoing ? "Undoing..." : "Undo this action"}
+                </button>
+                <p className="text-caption text-error">{error}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3">
+              <p className="text-body text-foreground-secondary">Here should be the info about the tool. But it is empty. Please, inform us about this.</p>
+            </div>
+          )}
+          </>
+        ) : (
+          <div>
+            <p>It is empty now</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Step({ kind, status, toolName, isLast, toolDetails }: AgentStep) {
   const t = useTranslations("agentSteps");
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
 
   let stepAction = `${t("unknown")}: `;
   if (["reasoning", "tool_call", "file_transcribe"].includes(kind)) {
@@ -338,9 +444,12 @@ function Step({ kind, label, status, toolName, isLast }: AgentStep) {
   };
 
   return (
-    <div className={`flex gap-2 items-start ${colorClass}`}>
+    <>
+    <button
+      className={`flex gap-2 items-start ${colorClass} hover:cursor-pointer group max-w-70`}
+      onClick={() => setIsOverlayOpen((prev) => !prev)}
+    >
       <div className="relative flex w-3 shrink-0 flex-col items-center self-stretch">
-        {/* mt-1 — выравнивание с текстом */}
         <div className="relative z-10 mt-1 flex size-3 shrink-0 items-center justify-center bg-surface">
           {status === "in_progress" ? (
             <InProgressIcon className="size-3 animate-pulse" />
@@ -353,19 +462,27 @@ function Step({ kind, label, status, toolName, isLast }: AgentStep) {
           )}
         </div>
 
-        {/* -mb-1 компенсирует mt-1 следующего шага → линия без разрыва */}
         {!isLast && <div className="w-0.5 flex-1 -mb-1 bg-foreground-muted" />}
       </div>
+      
+      <div className="flex w-full items-center justify-between gap-2 min-w-0">
+        <p
+          className={`text-body-sm min-w-0 flex-1 truncate pb-2 text-start group-hover:underline ${
+            status === "in_progress" ? "animate-pulse" : ""
+          }`}
+        >
+          {stepAction}
+          {localizedLabel()}
+        </p>
+        
+        <div className="pb-2">
+          <ArrowIcon className="size-2 shrink-0" />
+        </div>
+      </div>
+    </button>
 
-      <p
-        className={`text-body-sm pb-2 ${
-          status === "in_progress" ? "animate-pulse" : ""
-        }`}
-      >
-        {stepAction}
-        {localizedLabel()}
-      </p>
-    </div>
+    {isOverlayOpen && <StepOverlay kind={kind} status={status} toolName={toolName} toolDetails={toolDetails} onClose={() => setIsOverlayOpen(false)} />}
+    </>
   );
 }
 
