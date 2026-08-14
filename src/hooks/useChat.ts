@@ -8,6 +8,7 @@ import {
   StreamEvent,
   AgentStep,
 } from "../types/chat";
+import { useLocale } from "next-intl";
 
 const optimisticMessagesByChatId = new Map<string, Message[]>();
 
@@ -35,6 +36,9 @@ export function useChat(chatId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const previousChatIdRef = useRef<string | undefined>(chatId);
+
+  const locale = useLocale();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   useEffect(() => {
     let cancelled = false;
@@ -286,6 +290,8 @@ export function useChat(chatId?: string) {
             chatId: targetChatId,
             fileIds,
             userPrompt: prompt,
+            locale: locale,
+            timezone: timezone,
           },
           (event) => handleStreamEvent(event, updateLastAssistantMessage),
         );
@@ -324,7 +330,12 @@ export function useChat(chatId?: string) {
 
         await streamAI(
           "/api/ai/apply_tool",
-          { requestId, action },
+          { 
+            requestId: requestId,
+            action: action,
+            locale: locale,
+            timezone: timezone,
+          },
           (event) => handleStreamEvent(event, updateApproveRequiredMessage),
         );
         
