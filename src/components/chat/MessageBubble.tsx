@@ -325,6 +325,8 @@ function StepOverlay(
   { kind, status, toolName, toolDetails, onClose }: 
   { kind: StepKind, status: StepStatus, toolName?: string, toolDetails?: ToolDetails, onClose: () => void }
 ) {
+  const t = useTranslations("stepOverlay")
+
   const { error, undoTool } = useStep()
   const [isUndone, setIsUndone] = useState(false);
   const [isUndoing, setIsUndoing] = useState(false);
@@ -350,28 +352,46 @@ function StepOverlay(
           <div className="flex flex-col w-fit items-start p-3">
             <div className="flex flex-row  text-foreground gap-2 min-w-0 w-full">
               <ToolIcon className="size-5" />
-              <h4 className="text-h4 truncate min-w-0 flex-1">Tool "{toolName}"</h4>
+              <h4 className="text-h4 truncate min-w-0 flex-1">{t("toolTitle", { toolName: toolName ?? t("unknown") })}</h4>
             </div>
-            <p className="text-caption text-foreground-secondary">{status} · 0.6 seconds</p>
+            <p 
+              className={`
+                text-caption
+                ${status === "in_progress" ? "text-foreground-secondary"
+                  : status === "done" ? "text-success"
+                  : status === "awaiting_approval" ? "text-warning"
+                  : "text-error"
+                }
+              `}
+            >
+              {status} · 0.1 {t("seconds")}
+            </p>
           </div>
 
           {toolDetails ? (
             <div className="p-6 flex flex-col gap-10">
               <div className="flex flex-col gap-5">
                 <div className="flex flex-col gap-3">
-                  <h4 className="text-h4 text-foreground-secondary">Params preview:</h4>
+                  <h4 className="text-h4 text-foreground-secondary">{t("paramsPreview")}</h4>
                   <div className="bg-background rounded-md p-3 text-caption font-mono">
-                    <pre className="whitespace-pre-wrap break-all m-0">
-                      {toolDetails.arguments}
+                    <pre className="whitespace-pre-wrap break-all max-h-50 overflow-y-auto">
+                      {toolDetails.arguments ? JSON.stringify(JSON.parse(toolDetails.arguments), null, 2) : t("noParams")}
                     </pre>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <h4 className="text-h4 text-foreground-secondary">Result:</h4>
+                  <h4 className="text-h4 text-foreground-secondary">{t("result")}</h4>
                   <div className="bg-background rounded-md p-3 text-caption font-mono">
                     <pre className="whitespace-pre-wrap break-all m-0">
-                      {toolDetails.rowsAffected} data rows affected
+                      {toolDetails.rowsAffected ? t("rowsAffected", { rows: toolDetails.rowsAffected })
+                      : status === "in_progress" ? t("inProgress")
+                      : status === "error" ? t("errorResult")
+                      : status === "denied" ? t("deniedResult")
+                      : toolName === "get_all_tables" ? t("getAllTablesResult")
+                      : toolName === "get_table_structure" ? t("getTableStructureResult")
+                      : t("unknownResult")
+                      }
                     </pre>
                   </div>
                 </div>
@@ -398,20 +418,20 @@ function StepOverlay(
                     }
                   }}
                 >
-                  {isUndone ? "Action undone" : isUndoing ? "Undoing..." : "Undo this action"}
+                  {isUndone ? t("buttonUndone") : isUndoing ? t("buttonUndoing") : t("buttonUndo")}
                 </button>
                 <p className="text-caption text-error">{error}</p>
               </div>
             </div>
           ) : (
             <div className="p-3">
-              <p className="text-body text-foreground-secondary">Here should be the info about the tool. But it is empty. Please, inform us about this.</p>
+              <p className="text-body text-foreground-secondary">{t("emptyTool")}</p>
             </div>
           )}
           </>
         ) : (
           <div>
-            <p>It is empty now</p>
+            <p>{t("emptyStep")}</p>
           </div>
         )}
       </div>
@@ -553,7 +573,8 @@ export function MessageBubble({
             <div className="flex flex-col gap-2">
               <div
                 className={`
-                    flex flex-row items-center gap-2 hover:cursor-pointer w-fit text-foreground-muted
+                    flex flex-row items-center gap-2 w-fit text-foreground-muted
+                    hover:cursor-pointer hover:text-foreground-secondary
                 `}
                 onClick={() => setIsStepsExtended((prev) => !prev)}
               >
