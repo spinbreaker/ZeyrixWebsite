@@ -71,7 +71,7 @@
     "unknown": "Unknown",
     "reasoning": "Reasoning",
     "tool_call": "Tool",
-    "file_transcribe": "File",
+    "file_transcribe": "Attachment",
 
     "tool_call_in_progress": "Using \"{toolName}\"",
     "tool_call_done": "Used \"{toolName}\"",
@@ -86,5 +86,25 @@
     "file_transcribe_done": "File transcription completed",
     "file_transcribe_error": "Failed to transcribe file",
     "unknown_tool": "unknown tool"
+  },
+  "stepOverlay": {
+    "emptyStep": "It is empty now.",
+    "emptyTool": "Here should be the info about the tool, but it is empty. Please, inform us about this.",
+    "seconds": "seconds",
+    "toolTitle": "Tool \"{toolName}\"",
+    "unknownTool": "unknown",
+    "paramsPreview": "Params preview:",
+    "result": "Result:",
+    "rowsAffected": "{rows} data rows affected.",
+    "errorResult": "This tool was not executed because of the error. Probably, the agent called this tool with invalid arguments.",
+    "deniedResult": "This tool was denied by you.",
+    "inProgress": "In progress...",
+    "unknownResult": "Cannot find any result for this tool. Please, inform us about this.",
+    "buttonUndo": "Undo this action",
+    "buttonUndone": "Action undone",
+    "buttonUndoing": "Undoing...",
+    "getAllTablesResult": "The agent got all the available database table names.",
+    "getTableStructureResult": "The agent got the structure of one or more database tables.",
+    "noParams": "This tool has no any params."
   }
 }
