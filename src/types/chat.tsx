@@ -1,4 +1,4 @@
-export type StepStatus = "in_progress" | "done" | "error" | "awaiting_approval" | "denied" | "expired"
+export type StepStatus = "in_progress" | "done" | "error" | "awaiting_approval" | "denied" | "expired" | "forbidden"
 export type StepKind = "tool_call" | "reasoning" | "file_transcribe"
 
 export type ToolDetails = {
