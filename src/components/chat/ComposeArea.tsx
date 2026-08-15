@@ -85,9 +85,17 @@ export function ComposeArea({
 
   const router = useRouter();
 
+  const handleFiles = (files: File[]) => {
+      files.forEach(addAttachment);
+  };
+  
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
-    files.forEach(addAttachment);
+    
+    if (files.length > 0) {
+      handleFiles(files);
+    }
+
     e.target.value = "";
   }
 
@@ -151,6 +159,18 @@ export function ComposeArea({
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent) => {
+    if (!canInteract || sending || isRecording) {
+        return;
+    }
+
+    const files = Array.from(e.clipboardData.files);
+
+    if (files.length > 0) {
+        handleFiles(files);
+    }
+  };
+
   return (
     <div className="bg-background px-6 pb-3 w-full h-fit flex flex-col items-center">
       <div
@@ -188,6 +208,7 @@ export function ComposeArea({
           ref={textareaRef}
           value={message}
           onChange={handleChange}
+          onPaste={handlePaste}
           onKeyDown={handleKeyDown}
           disabled={!canInteract}
           placeholder={textareaPlaceholder()}
