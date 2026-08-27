@@ -99,6 +99,7 @@
     "rowsAffected": "{rows} data rows affected.",
     "errorResult": "This tool was not executed because of the error. Probably, the agent called this tool with invalid arguments.",
     "deniedResult": "This tool was denied by you.",
+    "forbiddenResult": "Tool use was blocked: you don't have permission to use this tool with the parameters specified by the agent. Please check your available permissions or change the request parameters.",
     "inProgress": "In progress...",
     "unknownResult": "Cannot find any result for this tool. Please, inform us about this.",
     "buttonUndo": "Undo this action",
@@ -106,6 +107,13 @@
     "buttonUndoing": "Undoing...",
     "getAllTablesResult": "The agent got all the available database table names.",
     "getTableStructureResult": "The agent got the structure of one or more database tables.",
-    "noParams": "This tool has no any params."
+    "noParams": "This tool has no any params.",
+    "awaiting_approval": "Awaiting approval",
+    "denied": "Denied",
+    "done": "Done",
+    "error": "Error",
+    "expired": "Expired",
+    "forbidden": "Access denied",
+    "in_progress": "In progress"
   }
 }
