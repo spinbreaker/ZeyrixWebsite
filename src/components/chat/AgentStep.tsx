@@ -1,0 +1,200 @@
+import InProgressIcon from "@/src/icons/in_progress.svg";
+import DoneIcon from "@/src/icons/done.svg";
+import CancelledIcon from "@/src/icons/cancelled.svg";
+import AwaitingIcon from "@/src/icons/time.svg";
+import ToolIcon from "@/src/icons/tool.svg";
+import ArrowIcon from "@/src/icons/arrowBasic.svg";
+import CloseIcon from "@/src/icons/close.svg";
+
+import { AgentStep, ToolDetails, StepKind, StepStatus} from "@/src/types/chat";
+import { useStep } from "@/src/hooks/useStep";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+
+function StepOverlay(
+  { kind, status, toolName, toolDetails, onClose }: 
+  { kind: StepKind, status: StepStatus, toolName?: string, toolDetails?: ToolDetails, onClose: () => void }
+) {
+  const t = useTranslations("stepOverlay")
+
+  const { error, undoTool } = useStep()
+  const [isUndone, setIsUndone] = useState(false);
+  const [isUndoing, setIsUndoing] = useState(false);
+
+  return (
+    <div
+      className="fixed inset-0 z-999 flex items-center justify-center bg-black/90 cursor-auto p-3"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-110 bg-surface rounded-2xl relative flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div 
+          className="absolute top-0 right-0 p-4 hover:cursor-pointer bg-surface rounded-2xl"
+          onClick={onClose}
+        >
+          <CloseIcon className="size-3 text-foreground-muted" />
+        </div>
+
+        {kind === "tool_call" ? (
+          <>
+          <div className="flex flex-col w-fit items-start p-3">
+            <div className="flex flex-row  text-foreground gap-1 min-w-0 w-full items-center">
+              <ToolIcon className="size-4" />
+              <h4 className="text-h4 truncate min-w-0 flex-1">{t("toolTitle", { toolName: toolName ?? t("unknown") })}</h4>
+            </div>
+            <p 
+              className={`
+                text-caption
+                ${status === "in_progress" ? "text-foreground-secondary"
+                  : status === "done" ? "text-success"
+                  : status === "awaiting_approval" ? "text-warning"
+                  : "text-error"
+                }
+              `}
+            >
+              {t(status)}
+            </p>
+          </div>
+
+          {toolDetails ? (
+            <div className="p-6 flex flex-col gap-10">
+              <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-3">
+                  <h4 className="text-h4 text-foreground-secondary">{t("paramsPreview")}</h4>
+                  <div className="bg-background rounded-md p-3 text-caption font-mono">
+                    <pre className="whitespace-pre-wrap break-all max-h-50 overflow-y-auto">
+                      {toolDetails.arguments ? JSON.stringify(JSON.parse(toolDetails.arguments), null, 2) : t("noParams")}
+                    </pre>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <h4 className="text-h4 text-foreground-secondary">{t("result")}</h4>
+                  <div className="bg-background rounded-md p-3 text-caption font-mono">
+                    <pre className="whitespace-pre-wrap break-all m-0 max-h-30 overflow-y-auto">
+                      {toolDetails.rowsAffected ? t("rowsAffected", { rows: toolDetails.rowsAffected })
+                      : status === "in_progress" ? t("inProgress")
+                      : status === "error" ? t("errorResult")
+                      : status === "denied" ? t("deniedResult")
+                      : status === "forbidden" ? t("forbiddenResult")
+                      : toolName === "get_all_tables" ? t("getAllTablesResult")
+                      : toolName === "get_table_structure" ? t("getTableStructureResult")
+                      : t("unknownResult")
+                      }
+                    </pre>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center gap-2">
+                <button 
+                  className={`
+                    w-full py-3 rounded-lg text-background bg-primary 
+                    ${["delete", "update", "insert"].includes(toolName ?? "") && toolDetails.auditLogId && !isUndone && !isUndoing ? "hover:cursor-pointer hover:bg-primary-hover" : "opacity-50"}
+                    ${isUndoing && "bg-primary-active"}
+                  `}
+                  disabled={!["delete", "update", "insert"].includes(toolName ?? "") || !toolDetails.auditLogId || isUndone || isUndoing}
+                  onClick={async () => {
+                    if (toolDetails.auditLogId) {
+                      try {
+                        setIsUndoing(true);
+                        await undoTool(toolDetails.auditLogId, setIsUndone);
+                      } catch {
+
+                      } finally {
+                        setIsUndoing(false);
+                      }
+                    }
+                  }}
+                >
+                  {isUndone ? t("buttonUndone") : isUndoing ? t("buttonUndoing") : t("buttonUndo")}
+                </button>
+                <p className="text-caption text-error">{error}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3">
+              <p className="text-body text-foreground-secondary">{t("emptyTool")}</p>
+            </div>
+          )}
+          </>
+        ) : (
+          <div>
+            <p>{t("emptyStep")}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function Step({ kind, status, toolName, isLast, toolDetails }: AgentStep) {
+  const t = useTranslations("agentSteps");
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+
+  let stepAction = `${t("unknown")}: `;
+  if (["reasoning", "tool_call", "file_transcribe"].includes(kind)) {
+    stepAction = `${t(kind)}: `;
+  }
+
+  const colorClass =
+    status === "in_progress" || status === "awaiting_approval"
+      ? "text-foreground-secondary"
+      : status === "done"
+        ? "text-foreground-muted"
+        : "text-[#ff8686]";
+
+  const localizedLabel = () => {
+    const tKey = `${kind}_${status}`;
+
+    return t(tKey, {
+      toolName: toolName ?? t("unknown_tool"),
+    });
+  };
+
+  const isInteractive = kind === "tool_call";
+
+  return (
+    <>
+    <button
+      className={`flex gap-2 items-start ${colorClass} ${isInteractive && 'hover:cursor-pointer group'} max-w-70`}
+      onClick={() => isInteractive && setIsOverlayOpen((prev) => !prev)}
+    >
+      <div className="relative flex w-3 shrink-0 flex-col items-center self-stretch">
+        <div className="relative z-10 mt-1 flex size-3 shrink-0 items-center justify-center bg-surface">
+          {status === "in_progress" ? (
+            <InProgressIcon className="size-3 animate-pulse" />
+          ) : status === "done" ? (
+            <DoneIcon className="size-3" />
+          ) : status === "awaiting_approval" ? (
+            <AwaitingIcon className="size-3" />
+          ) : (
+            <CancelledIcon className="size-3" />
+          )}
+        </div>
+
+        {!isLast && <div className="w-0.5 flex-1 -mb-1 bg-foreground-muted" />}
+      </div>
+      
+      <div className="flex w-full items-center justify-between gap-2 min-w-0">
+        <p
+          className={`text-body-sm min-w-0 flex-1 truncate pb-2 text-start group-hover:underline ${
+            status === "in_progress" ? "animate-pulse" : ""
+          }`}
+        >
+          {stepAction}
+          {localizedLabel()}
+        </p>
+        
+        <div className={`pb-2 ${!isInteractive && "hidden"}`}>
+          <ArrowIcon className="size-2 shrink-0" />
+        </div>
+      </div>
+    </button>
+
+    {isOverlayOpen && <StepOverlay kind={kind} status={status} toolName={toolName} toolDetails={toolDetails} onClose={() => setIsOverlayOpen(false)} />}
+    </>
+  );
+}
