@@ -1,3 +1,5 @@
+import { SetStateAction } from "react";
+
 export type StepStatus = "in_progress" | "done" | "error" | "awaiting_approval" | "denied" | "expired" | "forbidden"
 export type StepKind = "tool_call" | "reasoning" | "file_transcribe"
 
@@ -49,10 +51,18 @@ export type Message = {
   createdAt: string;
   processingSeconds?: number;
   steps?: AgentStep[];
+  notSent?: boolean;
   applyToolUse: (
     requestId: string,
     action: "confirm" | "reject",
   ) => Promise<void>;
+  retrySendMessage?: (
+    id: string,
+    prompt: string,
+    attachments: Attachment[],
+    deleteFromLocal: boolean,
+  ) => void;
+  setShouldScroll?: (value: SetStateAction<boolean>) => void;
 };
 
 export type Attachment = {
@@ -96,7 +106,12 @@ export interface PresignResponse {
 }
 
 export function mapAttachments(attachment: PendingAttachment): Attachment {
-  const sizeMB = `${(attachment.file.size / (1024 * 1024)).toFixed(2)} MB`;
+  if (!attachment.fileId) {
+    throw new Error("Attachment has no fileId");
+  }
+
+  const size = attachment.file.size;
+  const sizeMB = `${(size / (1024 * 1024)).toFixed(2)} MB`;
 
   return {
     fileId: attachment.fileId ?? crypto.randomUUID(),
