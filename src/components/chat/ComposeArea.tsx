@@ -14,6 +14,7 @@ import { mapAttachments, Attachment } from "@/src/types/chat";
 import { useVoiceRecorder } from "@/src/hooks/useVoiceRecorder";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslations } from "next-intl";
+import { useChatDraft } from "@/src/hooks/useChatDraftStore";
 
 type ComposeAreaProps = {
   chatId?: string;
@@ -49,9 +50,9 @@ export function ComposeArea({
     removeAttachment,
     readyFileIds,
     isUploading,
-    setAttachments,
     transcribeVoice,
-  } = useFileUpload();
+    attachments,
+  } = useFileUpload(chatId);
 
   const {
     isRecording,
@@ -73,7 +74,9 @@ export function ComposeArea({
     },
   });
 
-  const [message, setMessage] = useState("");
+  const { setMessage, draft, setAttachments } = useChatDraft(chatId);
+  const message = draft.message;
+
   const canSend =
     message.trim().length > 0 &&
     canInteract &&

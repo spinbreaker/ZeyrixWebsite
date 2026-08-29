@@ -3,9 +3,11 @@
 import { useState, useCallback } from "react";
 import type { PendingAttachment, PresignResponse } from "@/src/types/chat";
 import { cacheImage } from "../lib/ImageCache";
+import { useChatDraft } from "./useChatDraftStore";
 
-export function useFileUpload() {
-  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+export function useFileUpload(chatId?: string) {
+  const { setAttachments, draft } = useChatDraft(chatId);
+  const attachments = draft.attachments
 
   const updateAttachment = useCallback(
     (localId: string, patch: Partial<PendingAttachment>) => {
@@ -13,18 +15,18 @@ export function useFileUpload() {
         prev.map((a) => (a.localId === localId ? { ...a, ...patch } : a)),
       );
     },
-    [],
+    [setAttachments],
   );
 
   const removeAttachment = useCallback((localId: string) => {
     setAttachments((prev) => prev.filter((a) => a.localId !== localId));
-  }, []);
+  }, [setAttachments]);
 
   function isImage(file: File): boolean {
     return file.type.startsWith("image/");
   }
 
-  async function uploadFile(file: File): Promise<string> {
+  const uploadFile = useCallback(async (file: File): Promise<string> => {
     // Step 1: presign
     const presignRes = await fetch("/api/files/presign", {
       method: "POST",
@@ -36,7 +38,7 @@ export function useFileUpload() {
         size: file.size,
       }),
     });
-    if (!presignRes.ok) throw new Error(`Presign failed: ${presignRes.status}`);
+    if (!presignRes.ok) throw new Error(`${presignRes.status}`);
     const { uploadUrl, fileId }: PresignResponse = await presignRes.json();
 
     // Step 2: PUT to storage & cache to IDB
@@ -45,7 +47,7 @@ export function useFileUpload() {
       headers: { "Content-Type": file.type },
       body: file,
     });
-    if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
+    if (!uploadRes.ok) throw new Error(`${uploadRes.status}`);
 
     if (isImage(file)) {
       await cacheImage(fileId, file);
@@ -60,7 +62,7 @@ export function useFileUpload() {
     }).catch(() => {});
 
     return fileId;
-  }
+  }, []);
 
   const addAttachment = useCallback(
     async (file: File) => {
@@ -81,11 +83,11 @@ export function useFileUpload() {
       } catch (err) {
         updateAttachment(localId, {
           status: "error",
-          error: err instanceof Error ? err.message : "Upload failed",
+          error: err instanceof Error ? err.message : "500",
         });
       }
     },
-    [updateAttachment],
+    [updateAttachment, setAttachments, uploadFile],
   );
 
   const readyFileIds = attachments
@@ -114,7 +116,7 @@ export function useFileUpload() {
         err instanceof Error ? err : new Error("Failed to transcribe a file");
       throw error;
     }
-  }, []);
+  }, [uploadFile]);
 
   return {
     attachments,
@@ -122,7 +124,6 @@ export function useFileUpload() {
     removeAttachment,
     readyFileIds,
     isUploading,
-    setAttachments,
     transcribeVoice,
   };
 }
