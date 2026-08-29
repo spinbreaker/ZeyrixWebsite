@@ -132,10 +132,12 @@ function AIChat({ id, name, renameChat, deleteChat, onClose }: AIChatProps) {
                 ${isRenaming && "border border-primary"}
             `}
         onClick={() => {
-          router.push(`/chat/${id}`, { scroll: false });
-          if (onClose) {
-            onClose();
+          if (isSelected) {
+            return;
           }
+          
+          router.push(`/chat/${id}`, { scroll: false });
+          if (onClose) {onClose();}
         }}
       >
         {isRenaming ? (
@@ -156,10 +158,17 @@ function AIChat({ id, name, renameChat, deleteChat, onClose }: AIChatProps) {
 
         <span
           className={`
-                    p-2 hover:bg-border rounded-lg
-                    ${isMenuOpen ? "bg-border opacity-100" : "lg:opacity-0 group-hover:opacity-100"}
-                    ${isRenaming && "hidden"}
-                `}
+            p-2
+            rounded-lg
+            hover:bg-border
+
+            opacity-100
+            [@media(hover:hover)]:opacity-0
+            [@media(hover:hover)]:group-hover:opacity-100
+
+            ${isMenuOpen ? "bg-border" : ""}
+            ${isRenaming ? "hidden" : ""}
+          `}
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();

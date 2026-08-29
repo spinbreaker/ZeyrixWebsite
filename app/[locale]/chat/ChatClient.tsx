@@ -12,11 +12,9 @@ export default function ChatClient({
   chatId?: string;
   createChat: (userPrompt: string) => Promise<string>;
 }) {
-  const { state } = useConnection();
-  const { messages, loading, error, sending, sendMessage, applyToolUse } =
+  const { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage } =
     useChat(chatId);
   const isEmptyRootChat = !chatId && messages.length === 0;
-  const isLoading = state !== "ready" || loading;
 
   const isToolRequestPending = messages.some(
     (message) =>
@@ -34,6 +32,7 @@ export default function ChatClient({
             error={error}
             compactEmptyState
             applyToolUse={applyToolUse}
+            retrySendMessage={retrySendMessage}
           />
 
           <ComposeArea
@@ -43,6 +42,7 @@ export default function ChatClient({
             createChat={createChat}
             isNewChat
             isToolRequestPending={isToolRequestPending}
+            failedToLoad={false}
           />
         </div>
       </div>
@@ -59,6 +59,7 @@ export default function ChatClient({
           loading={loading}
           error={error}
           applyToolUse={applyToolUse}
+          retrySendMessage={retrySendMessage}
         />
       </div>
 
@@ -69,6 +70,7 @@ export default function ChatClient({
         createChat={createChat}
         isNewChat={chatId ? false : true}
         isToolRequestPending={isToolRequestPending}
+        failedToLoad={Boolean(messages.length === 0 && error)}
       />
     </div>
   );

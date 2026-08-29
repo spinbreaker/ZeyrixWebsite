@@ -38,7 +38,7 @@ export function SidebarMobile({
 
       <aside
         className={`
-          absolute left-0 top-0 h-screen w-65 bg-background flex flex-col transform-gpu
+          absolute left-0 top-0 h-screen w-65 max-w-full bg-background flex flex-col transform-gpu
           transition-transform duration-150 ease-out motion-reduce:transition-none ${open ? "translate-x-0" : "-translate-x-full"}
         `}
       >
