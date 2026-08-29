@@ -5,9 +5,10 @@ import MicroIcon from "@/src/icons/microphone.svg";
 import SendIcon from "@/src/icons/arrow.svg";
 import CheckIcon from "@/src/icons/check.svg";
 import CloseIcon from "@/src/icons/close.svg";
-import { useRef, useState, useEffect } from "react";
+import ErrorIcon from "@/src/icons/warning.svg";
+import { useRef, useState, SetStateAction } from "react";
 import { useConnection } from "../auth/ConnectionContext";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useFileUpload } from "@/src/hooks/useFileUpload";
 import { AttachmentCard } from "./Attachment";
 import { mapAttachments, Attachment } from "@/src/types/chat";
@@ -28,6 +29,7 @@ type ComposeAreaProps = {
   createChat: (userPrompt: string) => Promise<string>;
   isNewChat: boolean;
   isToolRequestPending: boolean;
+  failedToLoad: boolean;
 };
 
 export function ComposeArea({
@@ -37,15 +39,17 @@ export function ComposeArea({
   createChat,
   isNewChat,
   isToolRequestPending,
+  failedToLoad,
 }: ComposeAreaProps) {
   const t = useTranslations("composeArea");
 
   const { state } = useConnection();
-  const canInteract = state === "ready";
+  const canInteract = state === "ready" && !failedToLoad;
+  const pathname = usePathname();
+  const [composeError, setComposeError] = useState<"chat-not-created" | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
-    attachments,
     addAttachment,
     removeAttachment,
     readyFileIds,
@@ -59,6 +63,8 @@ export function ComposeArea({
     isTranscribing,
     startRecording,
     stopRecording,
+    microphoneError,
+    setMicrophoneError,
     waveform,
   } = useVoiceRecorder({
     onRecordingFinished: async (blob) => {
@@ -117,11 +123,9 @@ export function ComposeArea({
   async function handleSend() {
     if (!canSend) return;
 
-    const text = message;
     setMessage("");
 
-    const tempAttachments = attachments;
-    const attachmentsToSend = attachments.map(mapAttachments);
+    const attachmentsToSend = attachments.filter((att) => att.status === "done").map(mapAttachments);
     setAttachments([]);
 
     try {
@@ -133,8 +137,9 @@ export function ComposeArea({
         await sendMessage(message, attachmentsToSend, readyFileIds, newChatId);
       }
     } catch {
-      setMessage(text);
-      setAttachments(tempAttachments);
+      if (pathname.endsWith("/chat")) {
+        setComposeError("chat-not-created");
+      }
     }
 
     if (textareaRef.current) {
@@ -151,8 +156,10 @@ export function ComposeArea({
   }
 
   const textareaPlaceholder = () => {
-    if (!canInteract) {
+    if (state !== "ready") {
       return t("connectingPlaceholder");
+    } else if (failedToLoad) {
+      return t("chatUnavailablePlaceholder");
     } else if (isTranscribing) {
       return t("transcribingPlaceholder");
     } else if (isRecording) {
@@ -177,11 +184,16 @@ export function ComposeArea({
   return (
     <div className="bg-background px-6 pb-3 w-full h-fit flex flex-col items-center">
       <div
-        className="
-                    bg-background border border-border rounded-2xl
+        className={`
+                    bg-background border rounded-2xl
                     px-4 py-3 flex flex-col gap-2
                     max-w-190 w-full
-                "
+                    ${microphoneError || composeError ? "border-error" : "border-border"}
+                `}
+        onClick={() => {
+          setMicrophoneError(null);
+          setComposeError(null);
+        }}
       >
         <AnimatePresence>
           {attachments.length > 0 && (
@@ -193,7 +205,7 @@ export function ComposeArea({
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="flex max-w-full gap-2 overflow-x-auto pb-1 scrollbar-thin">
+              <div className="flex max-w-full gap-2 overflow-x-auto pb-1 pt-2 scrollbar-thin">
                 {attachments.map((a) => (
                   <AttachmentCard
                     key={a.localId}
@@ -297,15 +309,18 @@ export function ComposeArea({
               <>
                 <button
                   className={`
-                                    size-8 rounded-lg flex items-center justify-center
+                                    size-8 rounded-lg flex items-center justify-center relative
                                     ${canInteract && "hover:cursor-pointer hover:bg-elevated"}
                                 `}
                   disabled={!canInteract}
-                  onClick={() => {
-                    !isRecording && startRecording();
+                  onClick={(e) => {
+                    if (!isRecording) {
+                      e.stopPropagation();
+                      startRecording();
+                    }
                   }}
                 >
-                  <MicroIcon className="text-foreground-secondary size-5" />
+                  <MicroIcon className={`text-foreground-secondary size-5`} />
                 </button>
 
                 <button
@@ -313,7 +328,7 @@ export function ComposeArea({
                   className={`
                                     size-8 rounded-lg flex items-center justify-center
                                     transition-all duration-200
-                                    ${canSend ? "bg-primary cursor-pointer" : "bg-foreground-muted/50"}
+                                    ${canSend ? "bg-primary cursor-pointer" : "bg-primary/50"}
                                 `}
                   onClick={handleSend}
                 >
@@ -323,15 +338,35 @@ export function ComposeArea({
             )}
           </div>
         </div>
+
+        {(microphoneError || composeError) && (
+          <div className="text-error flex flex-row items-center gap-2 text-body-sm">
+            <ErrorIcon className="shrink-0" />
+            
+            {microphoneError === "denied" ? (
+              <p>{t("microphoneDenied")}</p>
+            ) : microphoneError === "not-found" ? (
+              <p>{t("microphoneNotFound")}</p>
+            ) : microphoneError === "unavailable" ? (
+              <p>{t("microphoneUnavailable")}</p>
+            ) : microphoneError === "server-error" ? (
+              <p>{t("serverTranscribeError")}</p>
+            ) : composeError === "chat-not-created" && (
+              <p>{t("chatNotCreatedError")}</p>
+            )}
+            
+          </div>
+        )}
       </div>
-      <p
+      <div
         className={`
                 text-foreground-muted font-sans text-caption max-w-190 w-full text-center
                 ${isNewChat ? "hidden" : ""}
             `}
       >
-        {t("warningCaption")}
-      </p>
+        <p className="sm:hidden">{t("warningCaptionCompact")}</p>
+        <p className="hidden sm:inline">{t("warningCaption")}</p>
+      </div>
     </div>
   );
 }
