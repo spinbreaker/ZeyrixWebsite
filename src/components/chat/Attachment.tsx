@@ -5,8 +5,6 @@ import FileIcon from "@/src/icons/file.svg";
 import CloseIcon from "@/src/icons/close.svg";
 import ErrorIcon from "@/src/icons/warning.svg";
 import { AnimatePresence, motion } from "motion/react";
-import { ImageSkeleton } from "../skeletons/imageSkeleton";
-import { div } from "motion/react-client";
 
 interface AttachmentCardProps {
   attachment: PendingAttachment;
@@ -49,7 +47,7 @@ function ImageOverlay({
   onClose,
 }: {
   src: string;
-  alt: string;
+  alt?: string;
   layoutId: string;
   isOpen: boolean;
   onClose: () => void;
@@ -96,6 +94,7 @@ function ImageOverlay({
 
 export function AttachmentCard({ attachment, onRemove }: AttachmentCardProps) {
   const { file, localId, fileId, status, error } = attachment;
+
   const isImage = file.type.startsWith("image/");
   const [localSrc, setLocalSrc] = useState<string | null>(null);
 
@@ -109,7 +108,7 @@ export function AttachmentCard({ attachment, onRemove }: AttachmentCardProps) {
     setLocalSrc(url);
 
     return () => {
-      URL.revokeObjectURL(url);
+      if (url) {URL.revokeObjectURL(url);}
     };
   }, [file, isImage]);
 
@@ -117,9 +116,9 @@ export function AttachmentCard({ attachment, onRemove }: AttachmentCardProps) {
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
 
   return (
-    <div className="bg-elevated border border-border rounded-lg w-30 h-30 shrink-0 relative overflow-hidden">
+    <div className="bg-elevated border border-border rounded-lg w-30 h-30 shrink-0 relative group">
       {isImage && src ? (
-        <>
+        <div className="relative overflow-hidden w-full h-full">
           <motion.img
             layoutId={`attachment-${localId}`}
             src={src}
@@ -134,6 +133,14 @@ export function AttachmentCard({ attachment, onRemove }: AttachmentCardProps) {
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
           />
+          {status === "error" && (
+            <div className="flex flex-row text-caption items-center gap-1 w-full absolute bottom-1 bg-background">
+              <ErrorIcon className="text-error shrink-0 w-fit pl-1" />
+              <p className="text-foreground-secondary text-center truncate w-full">
+                {error === "400" ? "Unsupported file type" : "Something went wrong"}
+              </p>
+            </div>
+          )}
 
           <ImageOverlay
             src={src}
@@ -142,24 +149,37 @@ export function AttachmentCard({ attachment, onRemove }: AttachmentCardProps) {
             isOpen={isOverlayOpen}
             onClose={() => setIsOverlayOpen(false)}
           />
-        </>
+        </div>
       ) : (
         <div className="flex flex-col gap-2 px-3 py-2 justify-center items-center w-full h-full">
-          <FileIcon className="text-foreground size-4" />
+          <FileIcon className="text-foreground size-4 shrink-0" />
           <p className="font-sans text-body-sm text-foreground truncate w-full text-center">
             {file.name}
           </p>
           <p className="font-sans text-caption text-foreground-muted truncate w-full text-center">
-            {(file.size / (1024 * 1024)).toFixed(2)} MB
+            {((file.size) / (1024 * 1024)).toFixed(2)} MB
           </p>
+
+          {status === "error" && (
+            <div className="flex flex-row text-caption items-center gap-1 w-full absolute bottom-1 bg-background">
+              <ErrorIcon className="text-error shrink-0 w-fit pl-1" />
+              <p className="text-foreground-secondary text-center truncate w-full">
+                {error === "400" ? "Unsupported file type" : "Something went wrong"}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
       <button
-        className="absolute top-0 right-0 p-2 bg-border rounded-tr-lg rounded-bl-lg hover:cursor-pointer hover:bg-border/90 z-10"
+        className="
+          absolute -top-1.5 -right-1.5 p-1.5 bg-border rounded-full hover:cursor-pointer
+          border border-foreground-muted hover:border-foreground z-10
+          [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity
+        "
         onClick={() => onRemove(localId)}
       >
-        <CloseIcon className="size-3 text-foreground" />
+        <CloseIcon className="size-2 text-foreground" />
       </button>
 
       {status === "uploading" && (
@@ -169,17 +189,9 @@ export function AttachmentCard({ attachment, onRemove }: AttachmentCardProps) {
       )}
 
       {status === "error" && (
-        <>
-          <div className="absolute top-0 left-0 bg-black/70 w-full h-full pointer-events-none flex flex-col justify-center items-center gap-2">
-            <ErrorIcon className="size-6 text-error shrink-0" />
-            <p className="text-caption text-foreground-secondary text-center max-w-[95%]">
-              {error}
-            </p>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/40 overflow-hidden">
-            <div className="h-full w-full bg-error" />
-          </div>
-        </>
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/40 overflow-hidden">
+          <div className="h-full w-full bg-error" />
+        </div>
       )}
     </div>
   );
