@@ -1,5 +1,6 @@
 "use client";
-import { Message } from "@/src/types/chat";
+import ArrowIcon from "@/src/icons/arrow.svg";
+import { Message, Attachment } from "@/src/types/chat";
 import { useConnection } from "../auth/ConnectionContext";
 import { MessageBubble } from "./MessageBubble";
 import MainLogo from "@/public/icons/logoMain.svg";
@@ -8,7 +9,6 @@ import {
   useLayoutEffect,
   useEffect,
   useState,
-  useCallback,
 } from "react";
 import { useTranslations } from "next-intl";
 
@@ -22,6 +22,12 @@ type ChatAreaProps = {
     requestId: string,
     action: "confirm" | "reject",
   ) => Promise<void>;
+  retrySendMessage: (
+    id: string,
+    prompt: string,
+    attachments: Attachment[],
+    deleteFromLocal: boolean,
+  ) => void;
 };
 
 export function ChatArea({
@@ -30,11 +36,16 @@ export function ChatArea({
   compactEmptyState,
   chatId,
   applyToolUse,
+  error,
+  retrySendMessage,
 }: ChatAreaProps) {
-  const t = useTranslations("newChat");
+  const t = useTranslations("chatArea");
 
   const { state } = useConnection();
   const isConnectionLoading = state !== "ready";
+
+  const [closeToBottom, setCloseToBottom] = useState(true);
+  const [shouldScroll, setShouldScroll] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -53,6 +64,17 @@ export function ChatArea({
     !showLoading && messages.length === 0 && compactEmptyState;
   const showMessages = !showLoading && !showEmptyState;
 
+  useEffect(() => {
+    if (shouldScroll) {
+      bottomRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
+
+      setShouldScroll(false);
+    }
+  }, [shouldScroll]);
+
   // отслеживание "пользователь у низа"
   useEffect(() => {
     if (!showMessages) return;
@@ -64,6 +86,8 @@ export function ChatArea({
       const distanceFromBottom =
         container.scrollHeight - container.scrollTop - container.clientHeight;
       shouldAutoScrollRef.current = distanceFromBottom < 150;
+
+      setCloseToBottom(distanceFromBottom < 150);
     }
 
     container.addEventListener("scroll", handleScroll, { passive: true });
@@ -162,11 +186,40 @@ export function ChatArea({
               key={message.id}
               {...message}
               applyToolUse={applyToolUse}
+              retrySendMessage={retrySendMessage}
+              setShouldScroll={setShouldScroll}
             />
           ))}
           <div ref={bottomRef} />
         </div>
+        
+        {!closeToBottom && (
+          <div className="fixed bottom-40 w-full flex justify-center pointer-events-none">
+            <button 
+              className="p-3 bg-primary border border-background rounded-full hover:bg-primary-hover hover:cursor-pointer pointer-events-auto"
+              onClick={() => setShouldScroll(true)}
+            >
+              <ArrowIcon className="size-3 text-background rotate-180" />
+            </button>
+          </div>
+        )}
       </div>
+
+      {messages.length === 0 && error && (
+        <div className="flex flex-col gap-5 justify-center items-center h-full">
+          <div className="flex flex-col gap-2 items-center">
+            <h3 className="text-foreground text-h3">{t("failedTitle")}</h3>
+            <p className="text-foreground-secondary text-body text-center">{t("failedDescription")}</p>
+          </div>
+
+          <button 
+            className="bg-primary rounded-lg px-5 py-3 text-background hover:cursor-pointer hover:bg-primary-hover"
+            onClick={() => window.location.reload()}
+          >
+            {t("tryAgainButton")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
