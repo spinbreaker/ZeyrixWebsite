@@ -1,32 +1,26 @@
 "use client";
 
 import LikeIcon from "@/src/icons/like.svg";
-import WarningIcon from "@/src/icons/warning.svg";
+import ErrorIcon from "@/src/icons/warning.svg";
 import ArrowIcon from "@/src/icons/arrowBasic.svg";
-import ConfirmedIcon from "@/src/icons/check.svg";
-import CloseIcon from "@/src/icons/close.svg";
-import ExpiredIcon from "@/src/icons/time.svg";
+import RetryIcon from "@/src/icons/retry.svg";
+import RedactIcon from "@/src/icons/redact.svg";
 
 import { MessageAttachment } from "./Attachment";
 import {
   Message,
   Attachment,
-  AgentStep,
-  ApprovalDetails,
-  ToolDetails,
-  StepKind,
-  StepStatus,
 } from "@/src/types/chat";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { useState, useEffect, SetStateAction } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { getDateFnsLocale } from "@/src/lib/date-fns-locale";
 import { MarkdownMessage } from "./MarkdownMessage";
 import { CopyButton } from "./Buttons";
 import { Step } from "./AgentStep";
 import { ApprovalCard } from "./ApprovalCard";
+import { useChatDraft } from "@/src/hooks/useChatDraftStore";
 
 function formatMessageTime(dateString: string): string {
   const t = useTranslations("message");
@@ -65,16 +59,33 @@ function formatMessageTime(dateString: string): string {
 }
 
 function UserMessage({
+  id,
   attachments,
   text,
   time,
+  status,
+  notSent,
+  retrySendMessage,
+  setShouldScroll,
 }: {
+  id: string;
   attachments: Attachment[] | undefined;
   text: string;
   time: string;
+  status: "pending" | "completed" | "error" | "approve_required";
+  notSent?: boolean;
+  retrySendMessage?: (
+    id: string,
+    prompt: string,
+    attachments: Attachment[],
+    deleteFromLocal: boolean,
+  ) => void;
+  setShouldScroll?: (value: SetStateAction<boolean>) => void;
 }) {
+  const t = useTranslations("userMessage");
+
   return (
-    <div className="flex justify-end">
+    <div className="flex flex-col items-end">
       <div className="bg-primary px-4 py-3 rounded-t-[20px] rounded-bl-[20px] rounded-br-sm max-w-[70%]">
         {attachments && attachments.length === 0 ? (
           <></>
@@ -94,12 +105,60 @@ function UserMessage({
           {time}
         </p>
       </div>
+
+      {status === "error" && (
+        <div className="mt-1.5 flex flex-col items-end gap-2 text-caption">
+          <div className="flex items-center gap-1 text-error">
+            <ErrorIcon className="size-3.5 shrink-0" />
+            <p>{notSent ? t("notSent") : t("notTransmitted")}</p>
+          </div>
+
+          {/* <button
+              className="
+                flex items-center gap-2
+                text-foreground-secondary
+                hover:text-foreground hover:cursor-pointer
+                transition-colors
+              "
+              onClick={() => {
+                
+              }}
+            >
+              <RedactIcon className="size-3.5" />
+              <span>Редактировать</span>
+          </button> */}
+
+          {retrySendMessage && (
+            <button
+              className="
+                flex items-center gap-2
+                text-foreground-secondary
+                hover:text-foreground hover:cursor-pointer
+                transition-colors
+              "
+              onClick={() => {
+                retrySendMessage(id, text, attachments || [], notSent || false);
+
+                if (setShouldScroll) {
+                  setShouldScroll(true);
+                }
+              }}
+            >
+              <RetryIcon className="size-3.5" />
+              <p>{t("tryAgain")}</p>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 export function MessageBubble({
   applyToolUse,
+  retrySendMessage,
+  setShouldScroll,
+  notSent,
   role,
   status,
   text,
@@ -107,6 +166,7 @@ export function MessageBubble({
   steps,
   createdAt,
   processingSeconds,
+  id,
 }: Message) {
   const t = useTranslations("agentSteps");
 
@@ -154,22 +214,85 @@ export function MessageBubble({
     ? formatDuration(processingSeconds * 1000)
     : "-";
 
+  function adaptText(text: string, status: string): [string, string | null] {
+    const t = useTranslations("systemMessages");
+
+    if (status !== "error") {
+      return [text, null];
+    }
+
+    function generateContactUrl(errorCode: string, statusCode: string, requestId: string): string {
+      const reportSubject = t("unknownErrorReportSubject")
+      const reportBody = t("unknownErrorReportBody", {
+        "errorCode": errorCode,
+        "statusCode": statusCode,
+        "requestId": requestId,
+      });
+
+      const contactUrl =
+        `https://mail.google.com/mail/?view=cm&fs=1` +
+        `&to=${encodeURIComponent("support@zeyrix.co")}` +
+        `&su=${encodeURIComponent(reportSubject)}` +
+        `&body=${encodeURIComponent(reportBody)}`;
+      
+      return contactUrl;
+    }
+
+    try {
+      const parsedText = JSON.parse(text);
+      
+      const errorCode = parsedText["error_code"];
+      const statusCode = parsedText["status_code"];
+      const requestId = parsedText["request_id"];
+      const contactUrl = generateContactUrl(errorCode, statusCode, requestId);
+
+      const systemMessage = () => {
+        if (errorCode === "CLIENT_DISCONNECTED") {
+          return t("clientDisconnected");
+        } else {
+          return t("unknownError", {
+            "errorCode": errorCode,
+            "statusCode": statusCode,
+            "requestId": requestId,
+            "url": contactUrl,
+          });
+        }
+      };
+
+      return [systemMessage(), errorCode];
+
+    } catch(error) {
+      const errorCode = "INVALID_ERROR_MESSAGE_STRUCTURE";
+      const contactUrl = generateContactUrl(errorCode, "null", "null");
+
+      return [t("unknownError", {
+        "errorCode": errorCode,
+        "statusCode": "null",
+        "requestId": "null",
+        "url": contactUrl,
+      }), errorCode];
+    }
+  }
+
+  const [adaptedText, errorCode] = adaptText(text, status);
+
   switch (role) {
     case "user":
-      return <UserMessage attachments={attachments} text={text} time={time} />;
+      return <UserMessage attachments={attachments} text={text} time={time} status={status} retrySendMessage={retrySendMessage} id={id} notSent={notSent} setShouldScroll={setShouldScroll} />;
 
     case "assistant":
       return (
         <div className="flex justify-start min-w-0">
           <div className={`
             py-3 rounded-t-[20px] rounded-br-[20px] rounded-bl-sm w-full flex flex-col gap-1 min-w-0
-            ${status === "error" && "border border-error pl-5"}
+            ${status === "error" && "border pl-5"}
+            ${status === "error" && errorCode === "CLIENT_DISCONNECTED" ? "border-info" : "border-error"}
           `}>
             <div className="flex flex-col gap-2">
               <div
                 className={`
                     flex flex-row items-center gap-2 w-fit text-foreground-muted
-                    hover:cursor-pointer hover:text-foreground-secondary
+                    ${steps.length > 0 && "hover:cursor-pointer hover:text-foreground-secondary"}
                 `}
                 onClick={() => setIsStepsExtended((prev) => !prev)}
               >
@@ -185,7 +308,7 @@ export function MessageBubble({
                   </p>
                 )}
                 <ArrowIcon
-                  className={`size-2 ${isStepsExtended && "rotate-90"}`}
+                  className={`size-2 ${isStepsExtended && "rotate-90"} ${steps.length === 0 && "hidden"}`}
                 />
               </div>
 
@@ -212,10 +335,10 @@ export function MessageBubble({
 
             {text && (
               <>
-                <MarkdownMessage text={text} />
+                <MarkdownMessage text={adaptedText} />
 
                 <div className="flex flex-row items-center">
-                  <CopyButton content={text} />
+                  <CopyButton content={adaptedText} />
                   <button className="p-2 rounded-lg hover:bg-elevated hover:cursor-pointer">
                     <LikeIcon className="text-foreground size-4" />
                   </button>
