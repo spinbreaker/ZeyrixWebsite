@@ -10,6 +10,10 @@ export function useVoiceRecorder({
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const isRecordingAbortedRef = useRef(false);
+  
+  const [microphoneError, setMicrophoneError] = useState<
+    "denied" | "not-found" | "unavailable" | "server-error" | null
+  >(null);
 
   const [waveform, setWaveform] = useState<number[]>([]);
   const MAX_POINTS = 100; // меньше столбиков — спокойнее
@@ -87,63 +91,143 @@ export function useVoiceRecorder({
     animationFrameRef.current = requestAnimationFrame(updateVolume);
   }, []);
 
+  useEffect(() => {
+    let permissionStatus: PermissionStatus | null = null;
+
+    const handleDeviceChange = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+
+        const hasMicrophone = devices.some(
+          (device) => device.kind === "audioinput"
+        );
+
+        if (hasMicrophone) {
+          setMicrophoneError(null);
+        }
+      } catch {
+        // Ignore
+      }
+    };
+
+    const handlePermissionChange = () => {
+      if (permissionStatus?.state === "granted") {
+        setMicrophoneError(null);
+      }
+    };
+
+    const setup = async () => {
+      navigator.mediaDevices.addEventListener(
+        "devicechange",
+        handleDeviceChange
+      );
+
+      try {
+        permissionStatus = await navigator.permissions.query({
+          name: "microphone" as PermissionName,
+        });
+
+        permissionStatus.addEventListener(
+          "change",
+          handlePermissionChange
+        );
+      } catch {
+        // Permissions API may not be supported
+      }
+    };
+
+    setup();
+
+    return () => {
+      navigator.mediaDevices.removeEventListener(
+        "devicechange",
+        handleDeviceChange
+      );
+
+      permissionStatus?.removeEventListener(
+        "change",
+        handlePermissionChange
+      );
+    };
+  }, []);
+
   const startRecording = useCallback(async () => {
     if (isRecording) return;
 
     isRecordingAbortedRef.current = false;
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-    });
-
-    const audioContext = new AudioContext();
-
-    const source = audioContext.createMediaStreamSource(stream);
-
-    const analyser = audioContext.createAnalyser();
-
-    analyser.fftSize = 1024;
-
-    source.connect(analyser);
-
-    const recorder = new MediaRecorder(stream);
-
-    chunksRef.current = [];
-
-    recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        chunksRef.current.push(event.data);
-      }
-    };
-
-    recorder.onstop = async () => {
-      const blob = new Blob(chunksRef.current, {
-        type: recorder.mimeType,
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
       });
+      setMicrophoneError(null);
 
-      if (!isRecordingAbortedRef.current) {
-        setIsTranscribing(true);
-        await onRecordingFinished?.(blob);
-        setIsTranscribing(false);
+      const audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+
+      analyser.fftSize = 1024;
+
+      source.connect(analyser);
+
+      const recorder = new MediaRecorder(stream);
+
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const blob = new Blob(chunksRef.current, {
+          type: recorder.mimeType,
+        });
+
+        if (!isRecordingAbortedRef.current) {
+          setIsTranscribing(true);
+
+          try {
+            await onRecordingFinished?.(blob);
+          } catch (error) {
+            setMicrophoneError("server-error");
+          }
+
+          setIsTranscribing(false);
+        }
+
+        isRecordingAbortedRef.current = false;
+
+        await cleanup();
+
+        setIsRecording(false);
+      };
+
+      streamRef.current = stream;
+      recorderRef.current = recorder;
+      analyserRef.current = analyser;
+      audioContextRef.current = audioContext;
+
+      recorder.start();
+
+      setIsRecording(true);
+
+      updateVolume();
+
+    } catch (error) {
+      if (error instanceof DOMException) {
+        if (error.name === "NotAllowedError") {
+          setMicrophoneError("denied");
+        } else if (error.name === "NotFoundError") {
+          setMicrophoneError("not-found");
+        } else if (error.name === "NotReadableError") {
+          setMicrophoneError("unavailable");
+        }
       }
 
-      isRecordingAbortedRef.current = false;
-
-      await cleanup();
-
-      setIsRecording(false);
-    };
-
-    streamRef.current = stream;
-    recorderRef.current = recorder;
-    analyserRef.current = analyser;
-    audioContextRef.current = audioContext;
-
-    recorder.start();
-
-    setIsRecording(true);
-
-    updateVolume();
+      return;
+    }
   }, [isRecording, onRecordingFinished, updateVolume]);
 
   const stopRecording = useCallback((aborted: boolean) => {
@@ -163,5 +247,7 @@ export function useVoiceRecorder({
     waveform,
     startRecording,
     stopRecording,
+    microphoneError,
+    setMicrophoneError,
   };
 }
