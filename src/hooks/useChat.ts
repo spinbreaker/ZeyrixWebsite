@@ -67,9 +67,6 @@ export function useChat(chatId?: string) {
         if (!res.ok) throw new Error(`Backend вернул ${res.status}`);
         const data: Message[] = await res.json();
 
-        const status = data.at(-1)?.status;
-        const approvalDetails = data.at(-1)?.steps?.at(-1)?.approvalDetails;
-
         if (!cancelled) {
           if (data.length > 0) {
             clearOptimisticMessages(chatId);
@@ -83,7 +80,7 @@ export function useChat(chatId?: string) {
           setError(
             err instanceof Error
               ? err.message
-              : "Не удалось загрузить сообщения",
+              : "Failed to load messages",
           );
         }
       } finally {
@@ -118,7 +115,6 @@ export function useChat(chatId?: string) {
   }
 
   console.log("[stream] headers:", Object.fromEntries(response.headers.entries()));
-  // особенно смотри Content-Encoding
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -284,17 +280,48 @@ export function useChat(chatId?: string) {
           });
         };
 
-        await streamAI(
-          "http://localhost:8000/v1/ai/zeyrix/stream",
-          {
-            chatId: targetChatId,
-            fileIds,
-            userPrompt: prompt,
-            locale: locale,
-            timezone: timezone,
-          },
-          (event) => handleStreamEvent(event, updateLastAssistantMessage),
-        );
+        try {
+          await streamAI(
+            "http://localhost:8000/v1/ai/zeyrix/stream",
+            {
+              chatId: targetChatId,
+              fileIds,
+              userPrompt: prompt,
+              locale: locale,
+              timezone: timezone,
+            },
+            (event) => handleStreamEvent(event, updateLastAssistantMessage),
+          );
+        } catch (error) {
+          setMessages((prev) => {
+            const messages = [...prev];
+
+            const lastAgentIndex = messages.findLastIndex(
+              (message) => message.role === "assistant"
+            );
+
+            if (lastAgentIndex !== -1) {
+              messages.splice(lastAgentIndex, 1);
+            }
+
+            const lastUserIndex = messages.findLastIndex(
+              (message) => message.role === "user"
+            );
+
+            if (lastUserIndex !== -1) {
+              messages[lastUserIndex] = {
+                ...messages[lastUserIndex],
+                status: "error",
+                notSent: true,
+                retrySendMessage: retrySendMessage,
+              };
+            }
+
+            return messages;
+          });
+
+          throw error;
+        }
 
         if (targetChatId) {
           clearOptimisticMessages(targetChatId);
@@ -305,6 +332,22 @@ export function useChat(chatId?: string) {
     },
     [chatId],
   );
+
+  async function retrySendMessage(id: string, prompt: string, attachments: Attachment[], deleteFromLocal: boolean = true) {
+    if (deleteFromLocal) {
+      setMessages((prev) =>
+        prev.filter((message) => message.id !== id)
+      );
+    }
+
+    const fileIds = attachments.map((attachment) => attachment.fileId)
+
+    try {
+      await sendMessage(prompt, attachments, fileIds)
+    } catch(error) {
+
+    }
+  }
 
   const applyToolUse = useCallback(
     async (requestId: string, action: "confirm" | "reject") => {
@@ -376,5 +419,5 @@ export function useChat(chatId?: string) {
     [],
   );
 
-  return { messages, loading, error, sending, sendMessage, applyToolUse };
+  return { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage };
 }
