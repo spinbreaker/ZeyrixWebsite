@@ -34,7 +34,14 @@
     "standardPlaceholder": "Ask ZeyrixAI...",
     "recordingPlaceholder": "Feel free to speak, I'm listening...",
     "transcribingPlaceholder": "Transcribing your speech...",
-    "warningCaption": "ZeyrixAI is AI and can make mistakes. Please double-check responses."
+    "chatUnavailablePlaceholder": "Chat unavailable",
+    "warningCaption": "ZeyrixAI is AI and can make mistakes. Please double-check responses.",
+    "warningCaptionCompact": "ZeyrixAI is AI and can make mistakes.",
+    "microphoneDenied": "Microphone access is blocked. Please allow microphone access in your browser settings.",
+    "microphoneNotFound": "No microphone was found. Please connect a microphone and try again.",
+    "microphoneUnavailable": "Your microphone is unavailable. Please make sure it isn't being used by another app.",
+    "serverTranscribeError": "Speech transcription failed due to a server connection error. Please try again.",
+    "chatNotCreatedError": "We couldn't create the chat. Please check your internet connection and try again."
   },
   "toolApproval": {
     "title": "Confirmation required",
@@ -53,13 +60,16 @@
     "today": "Today",
     "yesterday": "Yesterday"
   },
-  "newChat": {
+  "chatArea": {
     "title1": "How can I help?",
     "title2": "Your AI assistant",
     "title3": "Ideas start here",
     "title4": "How can I assist?",
     "title5": "Your digital partner",
-    "title6": "Think. Plan. Act."
+    "title6": "Think. Plan. Act.",
+    "failedTitle": "Couldn't load messages",
+    "failedDescription": "Check your internet connection and try again.",
+    "tryAgainButton": "Try again"
   },
   "agentSteps": {
     "m": "m",
@@ -84,6 +94,7 @@
     "reasoning_done": "Finished thinking",
     "reasoning_error": "Failed to complete reasoning",
     "file_transcribe_in_progress": "Transcribing file",
+    "file_transcribe_cancelled": "Transcription stopped",
     "file_transcribe_done": "File transcription completed",
     "file_transcribe_error": "Failed to transcribe file",
     "unknown_tool": "unknown tool"
@@ -115,5 +126,16 @@
     "expired": "Expired",
     "forbidden": "Access denied",
     "in_progress": "In progress"
+  },
+  "userMessage": {
+    "notSent": "Not sent",
+    "notTransmitted": "Not sent to the agent",
+    "tryAgain": "Try again"
+  },
+  "systemMessages": {
+    "clientDisconnected": "### Response interrupted\n\nThe response was interrupted because the connection was lost before the agent could finish.\n\nSome of the agent's steps may have been completed before the interruption.",
+    "unknownError": "### Request failed\n\nUnfortunately, the request could not be completed due to an unexpected error.\n\n- **Error code:** `{errorCode}`\n- **Status code:** `{statusCode}`\n- **Request ID:** `{requestId}`\n\nPlease [report this issue]({url}) to our support team. The error details will be included automatically.",
+    "unknownErrorReportSubject": "Unknown error",
+    "unknownErrorReportBody": "Hello,\n\nI encountered an unexpected error.\n\nAdditional information:\n[optional - you can add details here]\n\n--- Automatically generated error details ---\nError code: {errorCode}\nStatus code: {statusCode}\nRequest ID: {requestId}\n--- End of automatically generated error details ---\n\nThank you."
   }
 }
