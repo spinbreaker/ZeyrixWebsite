@@ -13,6 +13,15 @@ import { useTranslations, useLocale } from "next-intl";
 import { formatDistanceToNow } from "date-fns";
 import { getDateFnsLocale } from "@/src/lib/date-fns-locale";
 
+function timeAgo(date: Date, locale: string) {
+  const dfLocale = getDateFnsLocale(locale);
+
+  return formatDistanceToNow(date, {
+    addSuffix: true,
+    locale: dfLocale,
+  });
+}
+
 export function ApprovalCard({
   approvalDetails,
   applyToolUse,
@@ -24,6 +33,8 @@ export function ApprovalCard({
   ) => Promise<void>;
 }) {
   const t = useTranslations("toolApproval");
+  const locale = useLocale();
+  const [isParamsDisplay, setIsParamsDisplay] = useState(false);
 
   if (!approvalDetails) {
     return (
@@ -39,7 +50,7 @@ export function ApprovalCard({
 
   const {
     actionSummary,
-    affectedResources,
+    affectRows,
     approvalExpiresAt,
     approvalId,
     paramsPreview,
@@ -50,19 +61,8 @@ export function ApprovalCard({
     appliedAt,
   } = approvalDetails;
 
-  const [isParamsDisplay, setIsParamsDisplay] = useState(false);
   const isExpired = new Date() > new Date(approvalExpiresAt) && !appliedAt;
   const isActive = status === "pending" && !isExpired;
-
-  function timeAgo(date: Date) {
-    const locale = useLocale();
-    const dfLocale = getDateFnsLocale(locale);
-
-    return formatDistanceToNow(date, {
-      addSuffix: true,
-      locale: dfLocale,
-    });
-  }
 
   return (
     <div className="flex justify-start">
@@ -83,7 +83,6 @@ export function ApprovalCard({
                 ${!isActive && "opacity-70"}
             `}
       >
-        {/* Header */}
         <div className="flex flex-row border-b border-border items-center justify-between pb-3">
           <p className="text-label">{t("title")}</p>
           <div
@@ -106,27 +105,20 @@ export function ApprovalCard({
           </div>
         </div>
 
-        {/* Content */}
         <div className="flex flex-col gap-1 mt-7">
           <h3 className="text-h3 text-foreground">{toolName}</h3>
           <p className="text-body text-foreground-secondary">{actionSummary}</p>
 
-          <div className="flex flex-row justify-between">
-            <p className="text-caption text-foreground-muted">
-              {affectedResources}
-            </p>
-            {!reversible && (
-              <div className="flex flex-row gap-1 items-center">
-                <WarningIcon className="text-error size-3" />
-                <p className="text-error text-caption">{t("irreversible")}</p>
-              </div>
-            )}
-          </div>
+          {!reversible && (
+            <div className="flex flex-row gap-1 items-center">
+              <WarningIcon className="text-error size-3" />
+              <p className="text-error text-caption">{t("irreversible")}</p>
+            </div>
+          )}
         </div>
 
         {isActive ? (
           <>
-            {/* Buttons */}
             <div className="flex justify-between flex-col sm:flex-row gap-5 items-center mt-7">
               <div className="flex flex-col gap-5 sm:flex-row w-full">
                 <button
@@ -141,7 +133,7 @@ export function ApprovalCard({
                 <button
                   className="
                                     text-foreground-secondary border border-border rounded-lg px-3 py-2
-                                    hover:cursor-pointer hover:bg-surface
+                                    hover:cursor-pointer hover:bg-surface/30
                                 "
                   onClick={() => applyToolUse(approvalId, "reject")}
                 >
@@ -165,7 +157,6 @@ export function ApprovalCard({
               </button>
             </div>
 
-            {/* Params — отступ теперь внутри анимации */}
             <AnimatePresence initial={false}>
               {isParamsDisplay && (
                 <motion.div
@@ -194,35 +185,35 @@ export function ApprovalCard({
           <div className="mt-7 flex flex-row gap-2 items-center">
             <ExpiredIcon className="text-error size-4" />
             <p className="text-body text-error">
-              {t("expired")} {timeAgo(new Date(approvalExpiresAt))}
+              {t("expired")} {timeAgo(new Date(approvalExpiresAt), locale)}
             </p>
           </div>
         ) : status === "rejected" ? (
           <div className="mt-7 flex flex-row gap-2 items-center">
             <CloseIcon className="text-error size-4" />
             <p className="text-body text-error">
-              {t("cancelled")} {appliedAt ? timeAgo(new Date(appliedAt)) : ""}
+              {t("cancelled")} {appliedAt ? timeAgo(new Date(appliedAt), locale) : ""}
             </p>
           </div>
         ) : status === "approved" ? (
           <div className="mt-7 flex flex-row gap-2 items-center">
             <ConfirmedIcon className="text-success size-4" />
             <p className="text-body text-success">
-              {t("confirmed")} {appliedAt ? timeAgo(new Date(appliedAt)) : ""}
+              {t("confirmed")} {appliedAt ? timeAgo(new Date(appliedAt), locale) : ""}
             </p>
           </div>
         ) : status === "executed" ? (
           <div className="mt-7 flex flex-row gap-2 items-center">
             <ConfirmedIcon className="text-success size-4" />
             <p className="text-body text-success">
-              {t("executed")} {appliedAt ? timeAgo(new Date(appliedAt)) : ""}
+              {t("executed")} {appliedAt ? timeAgo(new Date(appliedAt), locale) : ""}
             </p>
           </div>
         ) : (
           <div className="mt-7 flex flex-row gap-2 items-center">
             <WarningIcon className="text-error size-4" />
             <p className="text-body text-error">
-              {t("failed")} {appliedAt ? timeAgo(new Date(appliedAt)) : ""}
+              {t("failed")} {appliedAt ? timeAgo(new Date(appliedAt), locale) : ""}
             </p>
           </div>
         )}

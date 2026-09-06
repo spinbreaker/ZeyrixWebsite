@@ -20,7 +20,7 @@ import { MarkdownMessage } from "./MarkdownMessage";
 import { CopyButton } from "./Buttons";
 import { Step } from "./AgentStep";
 import { ApprovalCard } from "./ApprovalCard";
-import { useChatDraft } from "@/src/hooks/useChatDraftStore";
+import { _Translator } from "next-intl";
 
 function formatMessageTime(dateString: string): string {
   const t = useTranslations("message");
@@ -72,7 +72,7 @@ function UserMessage({
   attachments: Attachment[] | undefined;
   text: string;
   time: string;
-  status: "pending" | "completed" | "error" | "approve_required";
+  status: "pending" | "completed" | "error" | "approval_required" | "cancelled";
   notSent?: boolean;
   retrySendMessage?: (
     id: string,
@@ -154,6 +154,93 @@ function UserMessage({
   );
 }
 
+function adaptText(text: string, status: string, t: _Translator<Record<string, any>>): [string, string | null] {
+  if (status !== "error") {
+    return [text, null];
+  }
+
+  function generateContactUrl(errorCode: string, statusCode: string, requestId: string): string {
+    const reportSubject = t("unknownErrorReportSubject")
+    const reportBody = t("unknownErrorReportBody", {
+      "errorCode": errorCode,
+      "statusCode": statusCode,
+      "requestId": requestId,
+    });
+
+    const contactUrl =
+      `https://mail.google.com/mail/?view=cm&fs=1` +
+      `&to=${encodeURIComponent("support@zeyrix.co")}` +
+      `&su=${encodeURIComponent(reportSubject)}` +
+      `&body=${encodeURIComponent(reportBody)}`;
+    
+    return contactUrl;
+  }
+
+  try {
+    const parsedText = JSON.parse(text);
+    
+    const errorCode = parsedText["error_code"];
+    const statusCode = parsedText["status_code"];
+    const requestId = parsedText["request_id"];
+    const contactUrl = generateContactUrl(errorCode, statusCode, requestId);
+
+    const systemMessage = () => {
+      if (errorCode === "CLIENT_DISCONNECTED") {
+        return t("clientDisconnected");
+      } else {
+        return t("unknownError", {
+          "errorCode": errorCode,
+          "statusCode": statusCode,
+          "requestId": requestId,
+          "url": contactUrl,
+        });
+      }
+    };
+
+    return [systemMessage(), errorCode];
+
+  } catch(error) {
+    const errorCode = "INVALID_ERROR_MESSAGE_STRUCTURE";
+    const contactUrl = generateContactUrl(errorCode, "null", "null");
+
+    return [t("unknownError", {
+      "errorCode": errorCode,
+      "statusCode": "null",
+      "requestId": "null",
+      "url": contactUrl,
+    }), errorCode];
+  }
+}
+
+function formatDuration(ms: number, t: _Translator<Record<string, any>>): string {
+  const seconds = Math.round(ms / 1000);
+
+  if (seconds < 60) {
+    return `${seconds}${t("s")}`;
+  }
+
+  const minutes = Math.round(seconds / 60);
+  const restSeconds = seconds % 60;
+
+  return `${minutes}${t("m")} ${restSeconds}${t("s")}`;
+}
+
+function useElapsedTime(startDate: string | Date): number {
+  const [elapsed, setElapsed] = useState(() => {
+    return Date.now() - new Date(startDate).getTime();
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsed(Date.now() - new Date(startDate).getTime());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [startDate]);
+
+  return elapsed;
+}
+
 export function MessageBubble({
   applyToolUse,
   retrySendMessage,
@@ -169,112 +256,24 @@ export function MessageBubble({
   id,
 }: Message) {
   const t = useTranslations("agentSteps");
+  const system_messages_t = useTranslations("systemMessages");
 
   const time = formatMessageTime(createdAt);
   const [isStepsExtended, setIsStepsExtended] = useState(
-    status === "pending" || status === "approve_required",
+    status === "pending",
   );
   const approvalDetails = steps?.at(-1)?.approvalDetails;
   steps = steps ? steps : [];
 
-  function useElapsedTime(startDate: string | Date): number {
-    const [elapsed, setElapsed] = useState(() => {
-      return Date.now() - new Date(startDate).getTime();
-    });
-
-    useEffect(() => {
-      const interval = setInterval(() => {
-        setElapsed(Date.now() - new Date(startDate).getTime());
-      }, 1000);
-
-      return () => clearInterval(interval);
-    }, [startDate]);
-
-    return elapsed;
-  }
-
-  function formatDuration(ms: number): string {
-    const seconds = Math.round(ms / 1000);
-
-    if (seconds < 60) {
-      return `${seconds}${t("s")}`;
-    }
-
-    const minutes = Math.round(seconds / 60);
-    const restSeconds = seconds % 60;
-
-    return `${minutes}${t("m")} ${restSeconds}${t("s")}`;
-  }
-
   const workDuration = formatDuration(
     useElapsedTime(createdAt) +
-      (processingSeconds ? processingSeconds * 1000 : 0),
+      (processingSeconds ? processingSeconds * 1000 : 0), t
   );
   const workedFor = processingSeconds
-    ? formatDuration(processingSeconds * 1000)
+    ? formatDuration(processingSeconds * 1000, t)
     : "-";
 
-  function adaptText(text: string, status: string): [string, string | null] {
-    const t = useTranslations("systemMessages");
-
-    if (status !== "error") {
-      return [text, null];
-    }
-
-    function generateContactUrl(errorCode: string, statusCode: string, requestId: string): string {
-      const reportSubject = t("unknownErrorReportSubject")
-      const reportBody = t("unknownErrorReportBody", {
-        "errorCode": errorCode,
-        "statusCode": statusCode,
-        "requestId": requestId,
-      });
-
-      const contactUrl =
-        `https://mail.google.com/mail/?view=cm&fs=1` +
-        `&to=${encodeURIComponent("support@zeyrix.co")}` +
-        `&su=${encodeURIComponent(reportSubject)}` +
-        `&body=${encodeURIComponent(reportBody)}`;
-      
-      return contactUrl;
-    }
-
-    try {
-      const parsedText = JSON.parse(text);
-      
-      const errorCode = parsedText["error_code"];
-      const statusCode = parsedText["status_code"];
-      const requestId = parsedText["request_id"];
-      const contactUrl = generateContactUrl(errorCode, statusCode, requestId);
-
-      const systemMessage = () => {
-        if (errorCode === "CLIENT_DISCONNECTED") {
-          return t("clientDisconnected");
-        } else {
-          return t("unknownError", {
-            "errorCode": errorCode,
-            "statusCode": statusCode,
-            "requestId": requestId,
-            "url": contactUrl,
-          });
-        }
-      };
-
-      return [systemMessage(), errorCode];
-
-    } catch(error) {
-      const errorCode = "INVALID_ERROR_MESSAGE_STRUCTURE";
-      const contactUrl = generateContactUrl(errorCode, "null", "null");
-
-      return [t("unknownError", {
-        "errorCode": errorCode,
-        "statusCode": "null",
-        "requestId": "null",
-        "url": contactUrl,
-      }), errorCode];
-    }
-  }
-
-  const [adaptedText, errorCode] = adaptText(text, status);
+  const [adaptedText, errorCode] = adaptText(text, status, system_messages_t);
 
   switch (role) {
     case "user":
@@ -300,8 +299,10 @@ export function MessageBubble({
                   <p className="text-caption">
                     {t("working")} {workDuration}
                   </p>
-                ) : status === "approve_required" ? (
+                ) : status === "approval_required" ? (
                   <p className="text-caption">{t("awaiting")}</p>
+                ) : status === "cancelled" ? (
+                  <p className="text-caption">{t("cancelled")}</p>
                 ) : (
                   <p className="text-caption">
                     {t("worked")} {workedFor}
@@ -349,7 +350,7 @@ export function MessageBubble({
               </>
             )}
 
-            {status === "approve_required" && (
+            {status === "approval_required" && (
               <ApprovalCard
                 approvalDetails={approvalDetails}
                 applyToolUse={applyToolUse}
