@@ -3,7 +3,7 @@
 import { useChat } from "@/src/hooks/useChat";
 import { ChatArea } from "@/src/components/chat/ChatArea";
 import { ComposeArea } from "@/src/components/chat/ComposeArea";
-import { useConnection } from "@/src/components/auth/ConnectionContext";
+import { useState } from "react";
 
 export default function ChatClient({
   chatId,
@@ -12,14 +12,23 @@ export default function ChatClient({
   chatId?: string;
   createChat: (userPrompt: string) => Promise<string>;
 }) {
-  const { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage } =
+  const { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage, stopGeneration } =
     useChat(chatId);
   const isEmptyRootChat = !chatId && messages.length === 0;
 
   const isToolRequestPending = messages.some(
     (message) =>
-      message.role === "assistant" && message.status === "approve_required",
+      message.role === "assistant" &&
+      message.status === "approval_required" &&
+      message.steps?.some(
+        (step) => 
+          step.approvalDetails?.approvalExpiresAt &&
+          new Date(step.approvalDetails.approvalExpiresAt) > new Date()
+      ),
   );
+
+  const [closeToBottom, setCloseToBottom] = useState(true);
+  const [shouldScroll, setShouldScroll] = useState(false);
 
   if (isEmptyRootChat) {
     return (
@@ -33,6 +42,10 @@ export default function ChatClient({
             compactEmptyState
             applyToolUse={applyToolUse}
             retrySendMessage={retrySendMessage}
+            closeToBottom={closeToBottom}
+            setCloseToBottom={setCloseToBottom}
+            shouldScroll={shouldScroll}
+            setShouldScroll={setShouldScroll}
           />
 
           <ComposeArea
@@ -43,6 +56,9 @@ export default function ChatClient({
             isNewChat
             isToolRequestPending={isToolRequestPending}
             failedToLoad={false}
+            stopGeneration={stopGeneration}
+            closeToBottom={closeToBottom}
+            setShouldScroll={setShouldScroll}
           />
         </div>
       </div>
@@ -60,6 +76,10 @@ export default function ChatClient({
           error={error}
           applyToolUse={applyToolUse}
           retrySendMessage={retrySendMessage}
+          closeToBottom={closeToBottom}
+          setCloseToBottom={setCloseToBottom}
+          shouldScroll={shouldScroll}
+          setShouldScroll={setShouldScroll}
         />
       </div>
 
@@ -71,6 +91,9 @@ export default function ChatClient({
         isNewChat={chatId ? false : true}
         isToolRequestPending={isToolRequestPending}
         failedToLoad={Boolean(messages.length === 0 && error)}
+        stopGeneration={stopGeneration}
+        closeToBottom={closeToBottom}
+        setShouldScroll={setShouldScroll}
       />
     </div>
   );

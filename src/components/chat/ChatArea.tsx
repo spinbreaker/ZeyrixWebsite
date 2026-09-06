@@ -1,5 +1,4 @@
 "use client";
-import ArrowIcon from "@/src/icons/arrow.svg";
 import { Message, Attachment } from "@/src/types/chat";
 import { useConnection } from "../auth/ConnectionContext";
 import { MessageBubble } from "./MessageBubble";
@@ -11,6 +10,7 @@ import {
   useState,
 } from "react";
 import { useTranslations } from "next-intl";
+import { SetStateAction, Dispatch } from "react";
 
 type ChatAreaProps = {
   chatId?: string;
@@ -28,6 +28,10 @@ type ChatAreaProps = {
     attachments: Attachment[],
     deleteFromLocal: boolean,
   ) => void;
+  closeToBottom: boolean;
+  shouldScroll: boolean;
+  setCloseToBottom: Dispatch<SetStateAction<boolean>>;
+  setShouldScroll: Dispatch<SetStateAction<boolean>>;
 };
 
 export function ChatArea({
@@ -38,15 +42,16 @@ export function ChatArea({
   applyToolUse,
   error,
   retrySendMessage,
+  closeToBottom,
+  shouldScroll,
+  setCloseToBottom,
+  setShouldScroll,
 }: ChatAreaProps) {
   const t = useTranslations("chatArea");
 
   const { state } = useConnection();
   const isConnectionLoading = state !== "ready";
-
-  const [closeToBottom, setCloseToBottom] = useState(true);
-  const [shouldScroll, setShouldScroll] = useState(false);
-
+  
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const prevChatIdRef = useRef<string | undefined>(undefined);
@@ -192,17 +197,6 @@ export function ChatArea({
           ))}
           <div ref={bottomRef} />
         </div>
-        
-        {!closeToBottom && (
-          <div className="fixed bottom-40 w-full flex justify-center pointer-events-none">
-            <button 
-              className="p-3 bg-primary border border-background rounded-full hover:bg-primary-hover hover:cursor-pointer pointer-events-auto"
-              onClick={() => setShouldScroll(true)}
-            >
-              <ArrowIcon className="size-3 text-background rotate-180" />
-            </button>
-          </div>
-        )}
       </div>
 
       {messages.length === 0 && error && (

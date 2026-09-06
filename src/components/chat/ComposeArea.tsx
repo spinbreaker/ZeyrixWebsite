@@ -6,7 +6,10 @@ import SendIcon from "@/src/icons/arrow.svg";
 import CheckIcon from "@/src/icons/check.svg";
 import CloseIcon from "@/src/icons/close.svg";
 import ErrorIcon from "@/src/icons/warning.svg";
-import { useRef, useState, SetStateAction } from "react";
+import StopIcon from "@/src/icons/stop.svg";
+import ArrowIcon from "@/src/icons/arrow.svg";
+
+import { useRef, useState, SetStateAction, Dispatch } from "react";
 import { useConnection } from "../auth/ConnectionContext";
 import { useRouter, usePathname } from "next/navigation";
 import { useFileUpload } from "@/src/hooks/useFileUpload";
@@ -30,6 +33,9 @@ type ComposeAreaProps = {
   isNewChat: boolean;
   isToolRequestPending: boolean;
   failedToLoad: boolean;
+  stopGeneration: () => void;
+  closeToBottom: boolean;
+  setShouldScroll: Dispatch<SetStateAction<boolean>>;
 };
 
 export function ComposeArea({
@@ -40,6 +46,9 @@ export function ComposeArea({
   isNewChat,
   isToolRequestPending,
   failedToLoad,
+  stopGeneration,
+  closeToBottom,
+  setShouldScroll,
 }: ComposeAreaProps) {
   const t = useTranslations("composeArea");
 
@@ -182,7 +191,18 @@ export function ComposeArea({
   };
 
   return (
-    <div className="bg-background px-6 pb-3 w-full h-fit flex flex-col items-center">
+    <div className="bg-background px-6 pb-3 w-full h-fit flex flex-col items-center relative">
+      {!closeToBottom && (
+        <div className="absolute -top-15 w-full flex justify-center pointer-events-none">
+          <button 
+            className="p-3 bg-primary-surface border border-primary-outline hover:border-primary-hover rounded-full hover:cursor-pointer pointer-events-auto transition-all"
+            onClick={() => setShouldScroll(true)}
+          >
+            <ArrowIcon className="size-3 text-primary rotate-180" />
+          </button>
+        </div>
+      )}
+
       <div
         className={`
                     bg-background border rounded-2xl
@@ -246,11 +266,11 @@ export function ComposeArea({
         <div className="w-full h-fit flex justify-between gap-5">
           <button
             className={`
-                            size-8 flex items-center justify-center rounded-lg
-                            ${canInteract && "hover:bg-elevated"}
-                            ${isRecording && "hidden"}
-                            ${canInteract && !isRecording && "cursor-pointer"}
-                        `}
+              size-8 flex items-center justify-center rounded-lg
+              ${canInteract && "hover:bg-elevated"}
+              ${isRecording && "hidden"}
+              ${canInteract && !isRecording && "cursor-pointer"}
+            `}
             onClick={() => fileInputRef.current?.click()}
             disabled={!canInteract || sending || isRecording}
           >
@@ -259,9 +279,9 @@ export function ComposeArea({
 
           <div
             className={`
-                        flex flex-row items-center justify-end gap-1 h-full flex-1 min-w-0 overflow-hidden
-                        ${isTranscribing && "opacity-0"}
-                    `}
+              flex flex-row items-center justify-end gap-1 h-full flex-1 min-w-0 overflow-hidden
+              ${isTranscribing && "opacity-0"}
+            `}
           >
             {waveform.map((value, index) => (
               <div
@@ -281,9 +301,9 @@ export function ComposeArea({
               <>
                 <button
                   className={`
-                                    size-8 rounded-lg flex items-center justify-center
+                    size-8 rounded-lg flex items-center justify-center
                     hover:cursor-pointer bg-elevated hover:bg-border
-                                `}
+                  `}
                   disabled={!canInteract}
                   onClick={() => {
                     isRecording && stopRecording(true);
@@ -294,9 +314,9 @@ export function ComposeArea({
 
                 <button
                   className={`
-                                    size-8 rounded-lg flex items-center justify-center
+                    size-8 rounded-lg flex items-center justify-center
                     bg-primary cursor-pointer hover:bg-primary-hover transition-colors
-                                `}
+                  `}
                   onClick={() => {
                     isRecording && stopRecording(false);
                   }}
@@ -308,9 +328,9 @@ export function ComposeArea({
               <>
                 <button
                   className={`
-                                    size-8 rounded-lg flex items-center justify-center relative
-                                    ${canInteract && "hover:cursor-pointer hover:bg-elevated"}
-                                `}
+                    size-8 rounded-lg flex items-center justify-center relative
+                    ${canInteract && "hover:cursor-pointer hover:bg-elevated"}
+                  `}
                   disabled={!canInteract}
                   onClick={(e) => {
                     if (!isRecording) {
@@ -321,17 +341,17 @@ export function ComposeArea({
                 >
                   <MicroIcon className={`text-foreground-secondary size-5`} />
                 </button>
-
+                
                 {!sending ? (
-                <button
-                  disabled={!canSend}
-                  className={`
-                                    size-8 rounded-lg flex items-center justify-center
-                                    transition-all duration-200
+                  <button
+                    disabled={!canSend}
+                    className={`
+                      size-8 rounded-lg flex items-center justify-center
+                      transition-all duration-200
                       ${canSend ? "bg-primary cursor-pointer hover:bg-primary-hover transition-colors" : "bg-primary/50"}
-                                `}
-                  onClick={handleSend}
-                >
+                    `}
+                    onClick={handleSend}
+                  >
                     <SendIcon className="size-3 text-primary-surface" />
                   </button>
                 ) : (
@@ -345,7 +365,7 @@ export function ComposeArea({
                     onClick={stopGeneration}
                   >
                     <StopIcon className="size-4 text-primary-surface" />
-                </button>
+                  </button>
                 )}
               </>
             )}
