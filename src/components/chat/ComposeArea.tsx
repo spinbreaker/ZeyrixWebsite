@@ -282,7 +282,7 @@ export function ComposeArea({
                 <button
                   className={`
                                     size-8 rounded-lg flex items-center justify-center
-                                    hover:cursor-pointer bg-elevated
+                    hover:cursor-pointer bg-elevated hover:bg-border
                                 `}
                   disabled={!canInteract}
                   onClick={() => {
@@ -295,8 +295,7 @@ export function ComposeArea({
                 <button
                   className={`
                                     size-8 rounded-lg flex items-center justify-center
-                                    transition-all duration-200
-                                    bg-primary cursor-pointer
+                    bg-primary cursor-pointer hover:bg-primary-hover transition-colors
                                 `}
                   onClick={() => {
                     isRecording && stopRecording(false);
@@ -323,17 +322,31 @@ export function ComposeArea({
                   <MicroIcon className={`text-foreground-secondary size-5`} />
                 </button>
 
+                {!sending ? (
                 <button
                   disabled={!canSend}
                   className={`
                                     size-8 rounded-lg flex items-center justify-center
                                     transition-all duration-200
-                                    ${canSend ? "bg-primary cursor-pointer" : "bg-primary/50"}
+                      ${canSend ? "bg-primary cursor-pointer hover:bg-primary-hover transition-colors" : "bg-primary/50"}
                                 `}
                   onClick={handleSend}
                 >
-                  <SendIcon className="size-3 text-background" />
+                    <SendIcon className="size-3 text-primary-surface" />
+                  </button>
+                ) : (
+                  <button
+                    disabled={!sending}
+                    className={`
+                      size-8 rounded-lg flex items-center justify-center
+                      transition-all duration-200
+                      ${sending ? "bg-primary cursor-pointer hover:bg-primary-hover transition-colors" : "bg-primary/50"}
+                    `}
+                    onClick={stopGeneration}
+                  >
+                    <StopIcon className="size-4 text-primary-surface" />
                 </button>
+                )}
               </>
             )}
           </div>
