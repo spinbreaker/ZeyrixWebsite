@@ -36,6 +36,7 @@ export function useChat(chatId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const previousChatIdRef = useRef<string | undefined>(chatId);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const locale = useLocale();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -96,57 +97,62 @@ export function useChat(chatId?: string) {
   }, [chatId]);
 
   async function streamAI(
-  url: string,
-  body: Record<string, unknown>,
-  onEvent: (event: StreamEvent) => void,
-) {
-  const response = await fetch(url, {
-    method: "POST",
-    credentials: "include",
-    headers: { 
-      "Content-Type": "application/json",
-      "Accept-Encoding": "identity",
-   },
-    body: JSON.stringify(body),
-  });
+    url: string,
+    body: Record<string, unknown>,
+    onEvent: (event: StreamEvent) => void,
+    signal: AbortSignal,
+  ) {
+    const response = await fetch(url, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept-Encoding": "identity",
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
 
-  if (!response.ok || !response.body) {
-    throw new Error(`Stream request failed: ${response.status}`);
-  }
-
-  console.log("[stream] headers:", Object.fromEntries(response.headers.entries()));
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      console.log("[stream] done");
-      break;
+    if (!response.ok || !response.body) {
+      throw new Error(`Stream request failed: ${response.status}`);
     }
 
-    const chunk = decoder.decode(value, { stream: true });
-    console.log("[stream] raw chunk:", JSON.stringify(chunk)); // ← вот здесь
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
 
-    buffer += chunk;
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || !trimmed.startsWith("data:")) continue;
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
 
-      const data = trimmed.slice(5).trim();
-      if (!data || data === "[DONE]") continue;
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
 
-      const event: StreamEvent = JSON.parse(data);
-      console.log("[stream] event:", event); // ← и здесь
-      onEvent(event);
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data:")) {
+            continue;
+          }
+
+          const data = trimmed.slice(5).trim();
+          if (!data || data === "[DONE]") {
+            continue;
+          }
+
+          const event: StreamEvent = JSON.parse(data);
+          onEvent(event);
+        }
+      }
+    } finally {
+      reader.releaseLock();
     }
   }
-}
 
   function handleStreamEvent(
     event: StreamEvent,
@@ -161,6 +167,8 @@ export function useChat(chatId?: string) {
           status: event.status,
           toolName: event.toolName,
           approvalDetails: event.approvalDetails,
+          toolDetails: event.toolDetails,
+          failedGeneration: event.failedGeneration,
         };
 
         updateMessage((message) => ({
@@ -179,6 +187,8 @@ export function useChat(chatId?: string) {
                   ...step,
                   status: event.status,
                   approvalDetails: event.approvalDetails,
+                  toolDetails: event.toolDetails,
+                  failedGeneration: event.failedGeneration,
                 }
               : step,
           ),
@@ -195,12 +205,11 @@ export function useChat(chatId?: string) {
       case "done":
         updateMessage((message) => ({
           ...message,
-          status: event.status ?? "completed",
+          status: event.status,
           text: event.content,
-          steps: event.steps ?? message.steps,
           processingSeconds:
             (message.processingSeconds ?? 0) +
-            (event.processingSeconds ?? 0),
+            event.processingSeconds,
         }));
         break;
 
@@ -222,6 +231,9 @@ export function useChat(chatId?: string) {
       newChatId?: string,
     ) => {
       const targetChatId = newChatId ?? chatId;
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
       const optimisticUserMsg: Message = {
         id: crypto.randomUUID(),
@@ -291,8 +303,28 @@ export function useChat(chatId?: string) {
               timezone: timezone,
             },
             (event) => handleStreamEvent(event, updateLastAssistantMessage),
+            controller.signal,
           );
         } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") {
+            setMessages((prev) =>
+              prev.map((message, index) => {
+                if (
+                  index === prev.findLastIndex((m) => m.role === "assistant")
+                ) {
+                  return {
+                    ...message,
+                    status: "cancelled",
+                  };
+                }
+
+                return message;
+              }),
+            );
+
+            return;
+          }
+
           setMessages((prev) => {
             const messages = [...prev];
 
@@ -327,6 +359,10 @@ export function useChat(chatId?: string) {
           clearOptimisticMessages(targetChatId);
         }
       } finally {
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null;
+        }
+
         setSending(false);
       }
     },
@@ -349,10 +385,12 @@ export function useChat(chatId?: string) {
     }
   }
 
-  const applyToolUse = useCallback(
-    async (requestId: string, action: "confirm" | "reject") => {
+  const applyToolUse = useCallback(async (requestId: string, action: "confirm" | "reject") => {
       setSending(true);
       setError(null);
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
       try {
         const updateApproveRequiredMessage = (
@@ -361,7 +399,7 @@ export function useChat(chatId?: string) {
           flushSync(() => {
             setMessages((prev) => {
               const index = prev.findLastIndex(
-                (message) => message.status === "approve_required",
+                (message) => message.status === "approval_required",
               );
               if (index === -1) return prev;
               return prev.map((message, i) =>
@@ -380,9 +418,29 @@ export function useChat(chatId?: string) {
             timezone: timezone,
           },
           (event) => handleStreamEvent(event, updateApproveRequiredMessage),
+          controller.signal,
         );
         
       } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          setMessages((prev) =>
+            prev.map((message, index) => {
+              if (
+                index === prev.findLastIndex((m) => m.role === "assistant")
+              ) {
+                return {
+                  ...message,
+                  status: "cancelled",
+                };
+              }
+
+              return message;
+            }),
+          );
+
+          return;
+        }
+
         const error =
           err instanceof Error
             ? err
@@ -413,11 +471,19 @@ export function useChat(chatId?: string) {
         setError(error.message);
         throw error;
       } finally {
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null;
+        }
+
         setSending(false);
       }
     },
-    [],
+    [locale, timezone],
   );
 
-  return { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage };
+  const stopGeneration = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
+
+  return { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage, stopGeneration };
 }

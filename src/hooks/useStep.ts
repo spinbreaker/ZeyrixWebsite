@@ -11,7 +11,7 @@ export function useStep() {
                 method: "POST",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ auditLogId: auditLogId }),
+                body: JSON.stringify({ auditLogId: auditLogId, allowPartial: false }),
             });
 
             const data = await res.json();
