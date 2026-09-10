@@ -112,7 +112,7 @@ export function useChat(chatId?: string) {
       body: JSON.stringify(body),
       signal,
     });
-
+    
     if (!response.ok || !response.body) {
       throw new Error(`Stream request failed: ${response.status}`);
     }
@@ -354,11 +354,11 @@ export function useChat(chatId?: string) {
 
           throw error;
         }
-
+      } finally {
         if (targetChatId) {
           clearOptimisticMessages(targetChatId);
         }
-      } finally {
+        
         if (abortControllerRef.current === controller) {
           abortControllerRef.current = null;
         }
