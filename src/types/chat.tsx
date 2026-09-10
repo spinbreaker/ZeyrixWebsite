@@ -126,3 +126,10 @@ export function mapAttachments(attachment: PendingAttachment): Attachment {
     size: sizeMB,
   };
 }
+
+export type AccessInvite = {
+  status: "pending" | "activated" | "expired" | "exhausted" | "revoked" | "notFound";
+  activationExpiresAt?: string;
+  activatedAt?: string;
+  accessExpiresAt?: string;
+}
