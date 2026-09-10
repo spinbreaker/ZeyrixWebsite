@@ -141,5 +141,31 @@
     "unknownError": "### Request failed\n\nUnfortunately, the request could not be completed due to an unexpected error.\n\n- **Error code:** `{errorCode}`\n- **Status code:** `{statusCode}`\n- **Request ID:** `{requestId}`\n\nPlease [report this issue]({url}) to our support team. The error details will be included automatically.",
     "unknownErrorReportSubject": "Unknown error",
     "unknownErrorReportBody": "Hello,\n\nI encountered an unexpected error.\n\nAdditional information:\n[optional - you can add details here]\n\n--- Automatically generated error details ---\nError code: {errorCode}\nStatus code: {statusCode}\nRequest ID: {requestId}\n--- End of automatically generated error details ---\n\nThank you."
+  },
+  "invite": {
+    "failedToActivate": "Failed to activate the invitation. Please try again or contact the administrator.",
+    "notFoundTitle": "Invitation not found",
+    "notFoundDescription": "Check the link or request a new invitation from the administrator.",
+    "expiredTitle": "Invitation has expired",
+    "expiredDescription": "This link is no longer valid. Request a new invitation from the administrator.",
+    "expired": "Expired",
+    "inviteUnavailable": "Invitation unavailable",
+    "inviteWasRevoked": "This invitation was revoked by the administrator.",
+    "inviteCannotBeUsed": "This invitation can no longer be used.",
+    "activated": "Access activated",
+    "hasInvite": "You have an invitation",
+    "activateAccess": "Activate access to start working with the agent.",
+    "accessUntil": "Access is valid until",
+    "accessGranted": "You can now proceed to the chat with the agent.",
+    "activating": "Activating…",
+    "activate": "Activate access",
+    "goToAgent": "Go to agent",
+    "goToMain": "Go to home",
+    "lasts": "Remaining",
+    "alreadyActivated": "Invitation already activated",
+    "activationDate": "Activation date",
+    "d": "d",
+    "h": "h",
+    "m": "m"
   }
 }
