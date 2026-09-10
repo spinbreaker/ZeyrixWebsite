@@ -85,7 +85,7 @@ function StepOverlay(
                   <h4 className="text-h4 text-foreground-secondary">{t("result")}</h4>
                   <div className="bg-background rounded-md p-3 text-caption font-mono">
                     <pre className="whitespace-pre-wrap break-all m-0 max-h-30 overflow-y-auto">
-                      {toolDetails.rowsAffected !== undefined ? t("rowsAffected", { rows: toolDetails.rowsAffected })
+                      {typeof toolDetails.rowsAffected === "number" ? t("rowsAffected", { rows: toolDetails.rowsAffected })
                       : status === "in_progress" ? t("inProgress")
                       : status === "error" ? t("errorResult")
                       : status === "denied" ? t("deniedResult")
