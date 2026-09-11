@@ -13,7 +13,7 @@ const SPLASH_DELAY_MS = 150;
 const CACHE_KEY = "zeyrix_was_authenticated";
 
 export default function AuthGate({ children }: { children: ReactNode }) {
-  const { setState } = useConnection();
+  const { setState, setAccess } = useConnection();
 
   const [authState, setAuthState] = useState<AuthState>("checking");
   const [showSplash, setShowSplash] = useState(false);
@@ -58,7 +58,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
     setState("ready");
 
-    let data: { authenticated?: boolean };
+    let data: { authenticated: boolean, access: boolean };
     try {
       data = await res.json();
     } catch {
@@ -74,6 +74,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     } else {
       sessionStorage.removeItem(CACHE_KEY);
       setAuthState("needs_turnstile");
+    }
+
+    if (data.access) {
+      setAccess("granted");
+    } else {
+      setAccess("disabled");
     }
   }
 
