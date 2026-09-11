@@ -12,8 +12,7 @@ export default function ChatClient({
   chatId?: string;
   createChat: (userPrompt: string) => Promise<string>;
 }) {
-  const { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage, stopGeneration } =
-    useChat(chatId);
+  const { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage, stopGeneration, setShouldMessagesLoad } = useChat(chatId);
   const isEmptyRootChat = !chatId && messages.length === 0;
 
   const isToolRequestPending = messages.some(
@@ -46,6 +45,7 @@ export default function ChatClient({
             setCloseToBottom={setCloseToBottom}
             shouldScroll={shouldScroll}
             setShouldScroll={setShouldScroll}
+            reloadMessages={() => setShouldMessagesLoad(true)}
           />
 
           <ComposeArea
@@ -80,6 +80,7 @@ export default function ChatClient({
           setCloseToBottom={setCloseToBottom}
           shouldScroll={shouldScroll}
           setShouldScroll={setShouldScroll}
+          reloadMessages={() => setShouldMessagesLoad(true)}
         />
       </div>
 

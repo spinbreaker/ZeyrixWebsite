@@ -3,12 +3,7 @@ import { Message, Attachment } from "@/src/types/chat";
 import { useConnection } from "../auth/ConnectionContext";
 import { MessageBubble } from "./MessageBubble";
 import MainLogo from "@/public/icons/logoMain.svg";
-import {
-  useRef,
-  useLayoutEffect,
-  useEffect,
-  useState,
-} from "react";
+import { useRef, useLayoutEffect, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { SetStateAction, Dispatch } from "react";
 
@@ -32,6 +27,7 @@ type ChatAreaProps = {
   shouldScroll: boolean;
   setCloseToBottom: Dispatch<SetStateAction<boolean>>;
   setShouldScroll: Dispatch<SetStateAction<boolean>>;
+  reloadMessages: () => void;
 };
 
 export function ChatArea({
@@ -46,6 +42,7 @@ export function ChatArea({
   shouldScroll,
   setCloseToBottom,
   setShouldScroll,
+  reloadMessages,
 }: ChatAreaProps) {
   const t = useTranslations("chatArea");
 
@@ -58,8 +55,6 @@ export function ChatArea({
   const prevMessagesLenRef = useRef(0);
   const shouldAutoScrollRef = useRef(true);
 
-  // true = следующий успешный скролл должен быть instant (смена чата)
-  // живёт до тех пор, пока реально не проскроллим
   const pendingInstantScrollRef = useRef(false);
   const [isSettling, setIsSettling] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
@@ -80,7 +75,6 @@ export function ChatArea({
     }
   }, [shouldScroll]);
 
-  // отслеживание "пользователь у низа"
   useEffect(() => {
     if (!showMessages) return;
     const container = containerRef.current;
@@ -99,7 +93,6 @@ export function ChatArea({
     return () => container.removeEventListener("scroll", handleScroll);
   }, [showMessages]);
 
-  // on chat change
   useLayoutEffect(() => {
     if (prevChatIdRef.current === chatId) return;
     prevChatIdRef.current = chatId;
@@ -108,10 +101,9 @@ export function ChatArea({
     pendingInstantScrollRef.current = true;
 
     setIsSettling(true);
-    setIsVisible(false); // сразу прячем без transition
+    setIsVisible(false);
   }, [chatId]);
 
-  // scroll
   useLayoutEffect(() => {
     if (!showMessages) return;
     const container = containerRef.current;
@@ -129,12 +121,10 @@ export function ChatArea({
         requestAnimationFrame(() => {
           if (!containerRef.current) return;
 
-          // 1. Скроллим мгновенно
           containerRef.current.scrollTop = containerRef.current.scrollHeight;
           pendingInstantScrollRef.current = false;
           setIsSettling(false);
 
-          // 2. На следующем кадре включаем видимость (чтобы transition сработал)
           requestAnimationFrame(() => {
             setIsVisible(true);
           });
@@ -173,6 +163,14 @@ export function ChatArea({
     );
   }
 
+  const handleTryAgain = () => {
+    pendingInstantScrollRef.current = true;
+    shouldAutoScrollRef.current = true;
+    setIsSettling(true);
+    setIsVisible(false);
+    reloadMessages();
+  };
+
   return (
     <div
       ref={containerRef}
@@ -200,7 +198,7 @@ export function ChatArea({
       </div>
 
       {messages.length === 0 && error && (
-        <div className="flex flex-col gap-5 justify-center items-center h-full">
+        <div className="flex flex-col gap-5 justify-center items-center min-h-[calc(100%-1.5rem)] min-w-0">
           <div className="flex flex-col gap-2 items-center">
             <h3 className="text-foreground text-h3">{t("failedTitle")}</h3>
             <p className="text-foreground-secondary text-body text-center">{t("failedDescription")}</p>
@@ -208,7 +206,7 @@ export function ChatArea({
 
           <button 
             className="bg-primary rounded-lg px-5 py-3 text-background hover:cursor-pointer hover:bg-primary-hover"
-            onClick={() => window.location.reload()}
+            onClick={handleTryAgain}
           >
             {t("tryAgainButton")}
           </button>
