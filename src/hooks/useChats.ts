@@ -1,15 +1,21 @@
 import { Chat, ApiChat, mapChat } from "../types/chat";
 import { useEffect, useState, useCallback } from "react";
+import { useConnection } from "../components/auth/ConnectionContext";
 
 export function useChats() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const {  state } = useConnection();
 
   useEffect(() => {
     async function loadChats() {
       setLoading(true);
       setError(null);
+
+      if (state !== "ready") {
+        return;
+      }
 
       try {
         const res = await fetch("/api/chats/get_all_chats", {
@@ -29,7 +35,7 @@ export function useChats() {
     }
 
     loadChats();
-  }, []);
+  }, [state]);
 
   const createChat = useCallback(
     async (userPrompt: string): Promise<string> => {

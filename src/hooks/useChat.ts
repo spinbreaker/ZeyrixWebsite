@@ -9,6 +9,7 @@ import {
   AgentStep,
 } from "../types/chat";
 import { useLocale } from "next-intl";
+import { useConnection } from "../components/auth/ConnectionContext";
 
 const optimisticMessagesByChatId = new Map<string, Message[]>();
 
@@ -37,14 +38,21 @@ export function useChat(chatId?: string) {
   const [sending, setSending] = useState(false);
   const previousChatIdRef = useRef<string | undefined>(chatId);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [shouldMessagesLoad, setShouldMessagesLoad] = useState(false);
 
   const locale = useLocale();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const { state } = useConnection();
 
   useEffect(() => {
     let cancelled = false;
     const previousChatId = previousChatIdRef.current;
     previousChatIdRef.current = chatId;
+
+    if (state !== "ready") {
+      return;
+    }
 
     async function loadMessages() {
       setLoading(true);
@@ -86,6 +94,7 @@ export function useChat(chatId?: string) {
         }
       } finally {
         if (!cancelled) setLoading(false);
+        if (shouldMessagesLoad) setShouldMessagesLoad(false);
       }
     }
 
@@ -94,7 +103,7 @@ export function useChat(chatId?: string) {
     return () => {
       cancelled = true;
     };
-  }, [chatId]);
+  }, [chatId, state, shouldMessagesLoad]);
 
   async function streamAI(
     url: string,
@@ -114,7 +123,8 @@ export function useChat(chatId?: string) {
     });
     
     if (!response.ok || !response.body) {
-      throw new Error(`Stream request failed: ${response.status}`);
+      const error = await response.json();
+      throw new Error(JSON.stringify(error));
     }
 
     const reader = response.body.getReader();
@@ -281,12 +291,6 @@ export function useChat(chatId?: string) {
                 i === index ? updater(message) : message,
               );
 
-              console.log(
-                "[ui] assistant text length:",
-                next[index]?.text?.length,
-                next[index]?.text?.slice(-40),
-              );
-
               return next;
             });
           });
@@ -323,6 +327,11 @@ export function useChat(chatId?: string) {
             );
 
             return;
+          }
+
+          if (error instanceof Error) {
+            const data = JSON.parse(error.message)
+            console.log(data.detail);
           }
 
           setMessages((prev) => {
@@ -485,5 +494,5 @@ export function useChat(chatId?: string) {
     abortControllerRef.current?.abort();
   }, []);
 
-  return { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage, stopGeneration };
+  return { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage, stopGeneration, setShouldMessagesLoad };
 }
