@@ -41,7 +41,8 @@
     "microphoneNotFound": "No microphone was found. Please connect a microphone and try again.",
     "microphoneUnavailable": "Your microphone is unavailable. Please make sure it isn't being used by another app.",
     "serverTranscribeError": "Speech transcription failed due to a server connection error. Please try again.",
-    "chatNotCreatedError": "We couldn't create the chat. Please check your internet connection and try again."
+    "chatNotCreatedError": "We couldn't create the chat. Please check your internet connection and try again.",
+    "accessDisabled": "No access"
   },
   "toolApproval": {
     "title": "Confirmation required",
@@ -167,5 +168,13 @@
     "d": "d",
     "h": "h",
     "m": "m"
+  },
+  "accessDisabled": {
+    "notActivatedShort": "Agent access is not activated yet.",
+    "notActivatedLong": "Agent access is not activated yet. Sending messages is unavailable until access is activated.",
+    "getAccess": "Get access",
+    "contactOverline": "/ GET IN TOUCH",
+    "contactTitle": "Get access",
+    "contactSubtitle": "Write to us and we’ll send you a personal link to activate access."
   }
 }
