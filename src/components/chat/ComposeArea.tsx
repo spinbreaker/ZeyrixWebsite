@@ -36,6 +36,7 @@ type ComposeAreaProps = {
   stopGeneration: () => void;
   closeToBottom: boolean;
   setShouldScroll: Dispatch<SetStateAction<boolean>>;
+  openContactModal: () => void;
 };
 
 export function ComposeArea({
@@ -49,11 +50,12 @@ export function ComposeArea({
   stopGeneration,
   closeToBottom,
   setShouldScroll,
+  openContactModal,
 }: ComposeAreaProps) {
   const t = useTranslations("composeArea");
 
-  const { state } = useConnection();
-  const canInteract = state === "ready" && !failedToLoad;
+  const { state, access } = useConnection();
+  const canInteract = state === "ready" && !failedToLoad && access === "granted";
   const pathname = usePathname();
   const [composeError, setComposeError] = useState<"chat-not-created" | null>(null);
 
@@ -173,6 +175,8 @@ export function ComposeArea({
       return t("transcribingPlaceholder");
     } else if (isRecording) {
       return t("recordingPlaceholder");
+    } else if (access === "disabled") {
+      return t("accessDisabled");
     } else {
       return t("standardPlaceholder");
     }
@@ -207,7 +211,7 @@ export function ComposeArea({
         className={`
                     bg-background border rounded-2xl
                     px-4 py-3 flex flex-col gap-2
-                    max-w-190 w-full
+                    max-w-190 w-full relative
                     ${microphoneError || composeError ? "border-error" : "border-border"}
                 `}
         onClick={() => {
@@ -215,6 +219,13 @@ export function ComposeArea({
           setComposeError(null);
         }}
       >
+        {access === "disabled" && (
+          <div
+            className="absolute inset-0 w-full h-full hover:cursor-pointer z-1"
+            onClick={openContactModal}
+          />
+        )}
+
         <AnimatePresence>
           {attachments.length > 0 && (
             <motion.div
@@ -267,14 +278,14 @@ export function ComposeArea({
           <button
             className={`
               size-8 flex items-center justify-center rounded-lg
-              ${canInteract && "hover:bg-elevated"}
+              ${canInteract && access === "granted" && "hover:bg-elevated"}
               ${isRecording && "hidden"}
-              ${canInteract && !isRecording && "cursor-pointer"}
+              ${canInteract && !isRecording && access === "granted" && "cursor-pointer"}
             `}
             onClick={() => fileInputRef.current?.click()}
             disabled={!canInteract || sending || isRecording}
           >
-            <PlusIcon className="text-foreground-secondary size-4" />
+            <PlusIcon className={`${canInteract ? "text-foreground" : "text-foreground-muted/50"} size-4`} />
           </button>
 
           <div
@@ -329,7 +340,7 @@ export function ComposeArea({
                 <button
                   className={`
                     size-8 rounded-lg flex items-center justify-center relative
-                    ${canInteract && "hover:cursor-pointer hover:bg-elevated"}
+                    ${canInteract && access === "granted" && "hover:cursor-pointer hover:bg-elevated"}
                   `}
                   disabled={!canInteract}
                   onClick={(e) => {
@@ -339,7 +350,7 @@ export function ComposeArea({
                     }
                   }}
                 >
-                  <MicroIcon className={`text-foreground-secondary size-5`} />
+                  <MicroIcon className={`${canInteract ? "text-foreground-secondary" : "text-foreground-muted/50"} size-5`} />
                 </button>
                 
                 {!sending ? (

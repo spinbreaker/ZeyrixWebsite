@@ -8,9 +8,11 @@ import { useState } from "react";
 export default function ChatClient({
   chatId,
   createChat,
+  openContactModal,
 }: {
   chatId?: string;
   createChat: (userPrompt: string) => Promise<string>;
+  openContactModal: () => void;
 }) {
   const { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage, stopGeneration, setShouldMessagesLoad } = useChat(chatId);
   const isEmptyRootChat = !chatId && messages.length === 0;
@@ -59,6 +61,7 @@ export default function ChatClient({
             stopGeneration={stopGeneration}
             closeToBottom={closeToBottom}
             setShouldScroll={setShouldScroll}
+            openContactModal={openContactModal}
           />
         </div>
       </div>
@@ -95,6 +98,7 @@ export default function ChatClient({
         stopGeneration={stopGeneration}
         closeToBottom={closeToBottom}
         setShouldScroll={setShouldScroll}
+        openContactModal={openContactModal}
       />
     </div>
   );
