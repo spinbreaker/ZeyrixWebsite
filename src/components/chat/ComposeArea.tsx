@@ -19,6 +19,7 @@ import { useVoiceRecorder } from "@/src/hooks/useVoiceRecorder";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useChatDraft } from "@/src/hooks/useChatDraftStore";
+import { AccessInfoModalStatus, AccessInfoModal } from "../modals/accessInfo";
 
 type ComposeAreaProps = {
   chatId?: string;
@@ -29,7 +30,11 @@ type ComposeAreaProps = {
     newChatId?: string,
   ) => Promise<void>;
   sending: boolean;
-  createChat: (userPrompt: string) => Promise<string>;
+  createChat: (
+    userPrompt: string,
+    setComposeError: Dispatch<SetStateAction<"forbidden" | "chat-not-created" | null>>,
+    setModalState: Dispatch<SetStateAction<AccessInfoModalStatus | null>>,
+  ) => Promise<string>;
   isNewChat: boolean;
   isToolRequestPending: boolean;
   failedToLoad: boolean;
@@ -37,6 +42,7 @@ type ComposeAreaProps = {
   closeToBottom: boolean;
   setShouldScroll: Dispatch<SetStateAction<boolean>>;
   openContactModal: () => void;
+  setModalState: Dispatch<SetStateAction<AccessInfoModalStatus | null>>;
 };
 
 export function ComposeArea({
@@ -51,13 +57,14 @@ export function ComposeArea({
   closeToBottom,
   setShouldScroll,
   openContactModal,
+  setModalState,
 }: ComposeAreaProps) {
   const t = useTranslations("composeArea");
 
   const { state, access } = useConnection();
   const canInteract = state === "ready" && !failedToLoad && access === "granted";
   const pathname = usePathname();
-  const [composeError, setComposeError] = useState<"chat-not-created" | null>(null);
+  const [composeError, setComposeError] = useState<"chat-not-created" | "forbidden" | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
@@ -67,7 +74,7 @@ export function ComposeArea({
     isUploading,
     transcribeVoice,
     attachments,
-  } = useFileUpload(chatId);
+  } = useFileUpload(setModalState, chatId);
 
   const {
     isRecording,
@@ -143,14 +150,12 @@ export function ComposeArea({
       if (chatId) {
         await sendMessage(message, attachmentsToSend, readyFileIds);
       } else {
-        const newChatId = await createChat(message);
+        const newChatId = await createChat(message, setComposeError, setModalState);
         router.replace(`/chat/${newChatId}`, { scroll: false });
         await sendMessage(message, attachmentsToSend, readyFileIds, newChatId);
       }
     } catch {
-      if (pathname.endsWith("/chat")) {
-        setComposeError("chat-not-created");
-      }
+
     }
 
     if (textareaRef.current) {
@@ -285,7 +290,7 @@ export function ComposeArea({
             onClick={() => fileInputRef.current?.click()}
             disabled={!canInteract || sending || isRecording}
           >
-            <PlusIcon className={`${canInteract ? "text-foreground" : "text-foreground-muted/50"} size-4`} />
+            <PlusIcon className={`${canInteract ? "text-foreground" : "text-foreground-muted/90"} size-4`} />
           </button>
 
           <div
@@ -350,7 +355,7 @@ export function ComposeArea({
                     }
                   }}
                 >
-                  <MicroIcon className={`${canInteract ? "text-foreground-secondary" : "text-foreground-muted/50"} size-5`} />
+                  <MicroIcon className={`${canInteract ? "text-foreground-secondary" : "text-foreground-muted/90"} size-5`} />
                 </button>
                 
                 {!sending ? (
@@ -395,6 +400,8 @@ export function ComposeArea({
               <p>{t("microphoneUnavailable")}</p>
             ) : microphoneError === "server-error" ? (
               <p>{t("serverTranscribeError")}</p>
+            ) : microphoneError === "forbidden" || composeError === "forbidden" ? (
+              <p>{t("accessForbiddenError")}</p>
             ) : composeError === "chat-not-created" && (
               <p>{t("chatNotCreatedError")}</p>
             )}

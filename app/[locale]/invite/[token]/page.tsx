@@ -154,9 +154,6 @@ export default function InviteActivation() {
     setActivating(true);
     try {
       await activateInvite();
-      const fresh = await getInvite();
-      if (!mounted.current) return;
-      setInvite(fresh);
       setJustActivated(true);
     } catch (e) {
       if (!mounted.current) return;

@@ -3,7 +3,9 @@
 import { useChat } from "@/src/hooks/useChat";
 import { ChatArea } from "@/src/components/chat/ChatArea";
 import { ComposeArea } from "@/src/components/chat/ComposeArea";
-import { useState } from "react";
+import { useState, Dispatch, SetStateAction } from "react";
+import { AccessInfoModalStatus, AccessInfoModal } from "@/src/components/modals/accessInfo";
+import { useConnection } from "@/src/components/auth/ConnectionContext";
 
 export default function ChatClient({
   chatId,
@@ -11,10 +13,20 @@ export default function ChatClient({
   openContactModal,
 }: {
   chatId?: string;
-  createChat: (userPrompt: string) => Promise<string>;
+  createChat: (
+    userPrompt: string,
+    setComposeError: Dispatch<SetStateAction<"forbidden" | "chat-not-created" | null>>,
+    setModalState: Dispatch<SetStateAction<AccessInfoModalStatus | null>>,
+  ) => Promise<string>;
   openContactModal: () => void;
 }) {
-  const { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage, stopGeneration, setShouldMessagesLoad } = useChat(chatId);
+  const { setAccess } = useConnection();
+
+  const [closeToBottom, setCloseToBottom] = useState(true);
+  const [shouldScroll, setShouldScroll] = useState(false);
+  const [AccessInfoModalState, setAccessInfoModalState] = useState<AccessInfoModalStatus | null>(null);
+
+  const { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage, stopGeneration, setShouldMessagesLoad } = useChat(setAccessInfoModalState, chatId);
   const isEmptyRootChat = !chatId && messages.length === 0;
 
   const isToolRequestPending = messages.some(
@@ -28,12 +40,14 @@ export default function ChatClient({
       ),
   );
 
-  const [closeToBottom, setCloseToBottom] = useState(true);
-  const [shouldScroll, setShouldScroll] = useState(false);
-
   if (isEmptyRootChat) {
     return (
       <div className="flex flex-1 min-h-0 flex-col items-center mt-[10dvh] py-8 md:mt-[20dvh]">
+        {AccessInfoModalState && <AccessInfoModal status={AccessInfoModalState} onClose={() => {
+          setAccess("disabled");
+          setAccessInfoModalState(null);
+        }}/>}
+
         <div className="w-full max-w-190 flex flex-col items-center gap-[clamp(2rem,5vw,3rem)]">
           <ChatArea
             chatId={chatId}
@@ -62,6 +76,7 @@ export default function ChatClient({
             closeToBottom={closeToBottom}
             setShouldScroll={setShouldScroll}
             openContactModal={openContactModal}
+            setModalState={setAccessInfoModalState}
           />
         </div>
       </div>
@@ -70,6 +85,11 @@ export default function ChatClient({
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">
+      {AccessInfoModalState && <AccessInfoModal status={AccessInfoModalState} onClose={() => {
+        setAccess("disabled");
+        setAccessInfoModalState(null);
+      }}/>}
+
       <div className="flex-1 min-h-0">
         <ChatArea
           key={chatId ?? "new"}
@@ -99,6 +119,7 @@ export default function ChatClient({
         closeToBottom={closeToBottom}
         setShouldScroll={setShouldScroll}
         openContactModal={openContactModal}
+        setModalState={setAccessInfoModalState}
       />
     </div>
   );

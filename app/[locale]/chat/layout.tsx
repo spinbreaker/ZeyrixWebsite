@@ -17,7 +17,7 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
   const t = useTranslations("accessDisabled");
 
   const { chats, createChat, renameChat, deleteChat, loading } = useChats();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isGetAccessModalOpen, setIsGetAccessModalOpen] = useState(false);
 
   const { state, access } = useConnection();
   const isLoading = state !== "ready" || loading;
@@ -45,14 +45,14 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
             
               <button
                 className="border shrink-0 border-background text-background text-btn py-1.5 px-3 rounded-lg hover:cursor-pointer hover:bg-border/20"
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => setIsGetAccessModalOpen(true)}
               >
                 {t("getAccess")}
               </button>
             </div>
           )}
 
-          {isModalOpen && <GetAccessModal onClose={() => setIsModalOpen(false)} />}
+          {isGetAccessModalOpen && <GetAccessModal onClose={() => setIsGetAccessModalOpen(false)} />}
 
           <div className="flex flex-row flex-1 min-h-0 min-w-0">
             <div className="hidden lg:flex">
@@ -73,7 +73,7 @@ export default function ChatLayout({ children }: { children: ReactNode }) {
               />
 
               <div className="flex flex-1 min-h-0 flex-col">
-                <ChatClient chatId={chatId} createChat={createChat} openContactModal={() => setIsModalOpen(true)} />
+                <ChatClient chatId={chatId} createChat={createChat} openContactModal={() => setIsGetAccessModalOpen(true)} />
               </div>
             </div>
 
