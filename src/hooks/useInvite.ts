@@ -1,7 +1,10 @@
 import { useCallback } from "react";
 import { AccessInvite } from "../types/chat";
+import { useConnection } from "../components/auth/ConnectionContext";
 
 export function useInvite(token?: string) {
+    const { setAccess } = useConnection();
+
     const getInvite = useCallback(async (): Promise<AccessInvite> => {
         const response = await fetch(`/api/invites/${token}`, {
             method: "GET",
@@ -28,6 +31,8 @@ export function useInvite(token?: string) {
         if (!response.ok) {
             throw new Error("Not activated")
         }
+
+        setAccess("granted");
     }, [token])
 
     return { getInvite, activateInvite };

@@ -12,7 +12,7 @@ export function useVoiceRecorder({
   const isRecordingAbortedRef = useRef(false);
   
   const [microphoneError, setMicrophoneError] = useState<
-    "denied" | "not-found" | "unavailable" | "server-error" | null
+    "denied" | "not-found" | "unavailable" | "server-error" | "forbidden" | null
   >(null);
 
   const [waveform, setWaveform] = useState<number[]>([]);
@@ -191,7 +191,11 @@ export function useVoiceRecorder({
           try {
             await onRecordingFinished?.(blob);
           } catch (error) {
-            setMicrophoneError("server-error");
+            if (error instanceof Error && error.message === "401") {
+              setMicrophoneError("forbidden");
+            } else {
+              setMicrophoneError("server-error");
+            }
           }
 
           setIsTranscribing(false);

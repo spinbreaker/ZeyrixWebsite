@@ -1,6 +1,7 @@
 import { Chat, ApiChat, mapChat } from "../types/chat";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Dispatch, SetStateAction } from "react";
 import { useConnection } from "../components/auth/ConnectionContext";
+import { AccessInfoModalStatus } from "../components/modals/accessInfo";
 
 export function useChats() {
   const [chats, setChats] = useState<Chat[]>([]);
@@ -38,7 +39,11 @@ export function useChats() {
   }, [state]);
 
   const createChat = useCallback(
-    async (userPrompt: string): Promise<string> => {
+    async (
+      userPrompt: string,
+      setComposeError: Dispatch<SetStateAction<"forbidden" | "chat-not-created" | null>>,
+      setModalState: Dispatch<SetStateAction<AccessInfoModalStatus | null>>,
+    ): Promise<string> => {
       setError(null);
 
       try {
@@ -49,15 +54,27 @@ export function useChats() {
           body: JSON.stringify({ user_prompt: userPrompt }),
         });
 
-        if (!res.ok) throw new Error(`Backend вернул ${res.status}`);
+        if (!res.ok) {
+          const error = await res.json();
+
+          if (error.code === "INVITE_REQUIRED") {
+            setModalState(error.detail);
+            setComposeError("forbidden");
+          }
+
+          throw new Error(error.code);
+        }
 
         const data: ApiChat = await res.json();
         setChats((prev) => [mapChat(data), ...prev]);
 
         return data.id;
       } catch (err) {
-        const error =
-          err instanceof Error ? err.message : "Не удалось создать чат";
+        const error = err instanceof Error ? err.message : "Failed to create a chat";
+
+        if (error !== "INVITE_REQUIRED") {
+          setComposeError("chat-not-created");
+        }
 
         setError(error);
         throw err;
