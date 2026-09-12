@@ -13,6 +13,10 @@ type GetAccessModalProps = {
 export function GetAccessModal({ onClose }: GetAccessModalProps) {
     const t = useTranslations("accessDisabled")
 
+    const whatsappPhone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE;
+    const telegramUsername = process.env.NEXT_PUBLIC_TELEGRAM_USERNAME;
+    const encodedMessage = encodeURIComponent(t("messageForSupport"));
+
     return (
         <div className="fixed inset-0 z-999 bg-black/90 w-full h-full flex items-center justify-center px-6">
             <div 
@@ -35,12 +39,12 @@ export function GetAccessModal({ onClose }: GetAccessModalProps) {
                 </div>
 
                 <div className="flex flex-col min-w-0 gap-2">
-                    <ContactButton Icon={WhatsappIcon} name="Whatsapp" note="Something" url="https://wa.me" />
-                    <ContactButton Icon={TelegramIcon} name="Telegram" note="Something" url="https://t.me" />
+                    <ContactButton Icon={WhatsappIcon} name="Whatsapp" note="Something" url={`https://wa.me/${whatsappPhone}?text=${encodedMessage}`} />
+                    <ContactButton Icon={TelegramIcon} name="Telegram" note="Something" url={`https://t.me/${telegramUsername}?text=${encodedMessage}`} />
                     <ContactButton Icon={InstagramIcon} name="Instagram" note="Something" url="https://ig.me" />
                     <ContactButton Icon={ContactIcon} name="Send a message" note="Something" url="https://wa.me" />
                 </div>
             </div>
         </div>
-    )
+    );
 }
