@@ -147,3 +147,7 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #444444;
 }
+
+.main-hero {
+  background-image: url('/icons/logoMain.svg');
+}
