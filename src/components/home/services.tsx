@@ -1,4 +1,4 @@
-import Image from "next/image"
+import { useTranslations } from "next-intl"
 import { PrimaryButton, SecondaryButton } from "../reusable/buttons"
 
 interface Service {
@@ -27,6 +27,8 @@ function Service({ title, text, url }: Service) {
 }
 
 export function MainServices() {
+    const t = useTranslations("home");
+
     const services: Service[] = [
         {
             "id": 1,
@@ -51,8 +53,8 @@ export function MainServices() {
     return (
         <div className="bg-background px-6 py-12 flex flex-col gap-10 items-center">
             <div className="flex flex-col w-full">
-                <p className="text-overline text-primary">/ WHAT WE DO</p>
-                <h2 className="text-h2">What You Can Do With Us</h2>
+                <p className="text-overline text-primary">{t("servicesOverline")}</p>
+                <h2 className="text-h2">{t("servicesTitle")}</h2>
             </div>
 
             <div className="flex flex-col gap-6">
@@ -61,7 +63,7 @@ export function MainServices() {
                 ))}
             </div>
 
-            <PrimaryButton text="See All Services →" mode="fit" />
+            <PrimaryButton text={t("servicesButton")} mode="fit" />
         </div>
     )
 }

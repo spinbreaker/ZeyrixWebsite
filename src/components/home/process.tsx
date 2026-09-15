@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl"
+
 interface Step {
     number: string,
     title: string,
@@ -15,34 +17,36 @@ function StepComponent({ title, text, number }: Step) {
 }
 
 export function HowItWorks() {
+    const t = useTranslations("home");
+
     const steps: Step[] = [
         {
             "number": "01",
-            "title": "Consultation",
-            "text": "We discuss your project and define the best AI setup for your needs.",
+            "title": t("firstStepTitle"),
+            "text": t("firstStepText"),
         },
         {
             "number": "02",
-            "title": "Setup",
-            "text": "After a 50% upfront payment, we start building your AI system.",
+            "title": t("secondStepTitle"),
+            "text": t("secondStepText"),
         },
         {
             "number": "03",
-            "title": "Development & Launch",
-            "text": "We configure and deploy your project. You receive updates throughout the process.",
+            "title": t("thirdStepTitle"),
+            "text": t("thirdStepText"),
         },
         {
             "number": "04",
-            "title": "Delivery & Support",
-            "text": "After final payment, your system goes live. We stay available for ongoing support whenever you need it.",
+            "title": t("fourthStepTitle"),
+            "text": t("fourthStepText"),
         },
     ]
 
     return (
         <div className="bg-surface px-6 py-12 flex flex-col gap-10">
             <div className="flex flex-col">
-                <p className="text-overline text-primary">/ PROCESS</p>
-                <h2 className="text-h2">How It Works</h2>
+                <p className="text-overline text-primary">{t("processOverline")}</p>
+                <h2 className="text-h2">{t("processTitle")}</h2>
             </div>
 
             <div className="flex flex-col gap-10 px-6">
