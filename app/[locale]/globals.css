@@ -148,6 +148,10 @@
   background: #444444;
 }
 
+.main-hero {
+  background-image: url('/icons/logoMain.svg');
+}
+
 @keyframes invite-pulse {
   0%,
   100% {
