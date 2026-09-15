@@ -192,6 +192,7 @@
     "worksOverline": "/ OUR WORKS",
     "worksTitle": "What We’ve Built",
     "worksButton": "See More Projects →"
+  },
   "invite": {
     "failedToActivate": "Failed to activate the invitation. Please try again or contact the administrator.",
     "notFoundTitle": "Invitation not found",
