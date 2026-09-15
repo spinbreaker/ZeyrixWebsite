@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Dispatch, SetStateAction } from "react";
 import { flushSync } from "react-dom";
 import {
   Message,
@@ -9,6 +9,8 @@ import {
   AgentStep,
 } from "../types/chat";
 import { useLocale } from "next-intl";
+import { useConnection } from "../components/auth/ConnectionContext";
+import { AccessInfoModalStatus } from "../components/modals/accessInfo";
 
 const optimisticMessagesByChatId = new Map<string, Message[]>();
 
@@ -28,7 +30,7 @@ function clearOptimisticMessages(chatId?: string) {
   optimisticMessagesByChatId.delete(chatId);
 }
 
-export function useChat(chatId?: string) {
+export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalStatus | null>>, chatId?: string) {
   const [messages, setMessages] = useState<Message[]>(() =>
     getOptimisticMessages(chatId),
   );
@@ -37,14 +39,21 @@ export function useChat(chatId?: string) {
   const [sending, setSending] = useState(false);
   const previousChatIdRef = useRef<string | undefined>(chatId);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [shouldMessagesLoad, setShouldMessagesLoad] = useState(false);
 
   const locale = useLocale();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const { state } = useConnection();
 
   useEffect(() => {
     let cancelled = false;
     const previousChatId = previousChatIdRef.current;
     previousChatIdRef.current = chatId;
+
+    if (state !== "ready") {
+      return;
+    }
 
     async function loadMessages() {
       setLoading(true);
@@ -86,6 +95,7 @@ export function useChat(chatId?: string) {
         }
       } finally {
         if (!cancelled) setLoading(false);
+        if (shouldMessagesLoad) setShouldMessagesLoad(false);
       }
     }
 
@@ -94,7 +104,7 @@ export function useChat(chatId?: string) {
     return () => {
       cancelled = true;
     };
-  }, [chatId]);
+  }, [chatId, state, shouldMessagesLoad]);
 
   async function streamAI(
     url: string,
@@ -105,16 +115,14 @@ export function useChat(chatId?: string) {
     const response = await fetch(url, {
       method: "POST",
       credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept-Encoding": "identity",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       signal,
     });
-
+    
     if (!response.ok || !response.body) {
-      throw new Error(`Stream request failed: ${response.status}`);
+      const error = await response.json();
+      throw new Error(JSON.stringify(error));
     }
 
     const reader = response.body.getReader();
@@ -281,12 +289,6 @@ export function useChat(chatId?: string) {
                 i === index ? updater(message) : message,
               );
 
-              console.log(
-                "[ui] assistant text length:",
-                next[index]?.text?.length,
-                next[index]?.text?.slice(-40),
-              );
-
               return next;
             });
           });
@@ -294,7 +296,7 @@ export function useChat(chatId?: string) {
 
         try {
           await streamAI(
-            "http://localhost:8000/v1/ai/zeyrix/stream",
+            `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/ai/zeyrix/stream`,
             {
               chatId: targetChatId,
               fileIds,
@@ -323,6 +325,14 @@ export function useChat(chatId?: string) {
             );
 
             return;
+          }
+
+          if (error instanceof Error) {
+            const data = JSON.parse(error.message)
+            
+            if (data.code === "INVITE_REQUIRED") {
+              setModalState(data.detail);
+            }
           }
 
           setMessages((prev) => {
@@ -354,11 +364,11 @@ export function useChat(chatId?: string) {
 
           throw error;
         }
-
+      } finally {
         if (targetChatId) {
           clearOptimisticMessages(targetChatId);
         }
-      } finally {
+        
         if (abortControllerRef.current === controller) {
           abortControllerRef.current = null;
         }
@@ -399,7 +409,10 @@ export function useChat(chatId?: string) {
           flushSync(() => {
             setMessages((prev) => {
               const index = prev.findLastIndex(
-                (message) => message.status === "approval_required",
+                (message) =>
+                  message.role === "assistant" &&
+                  (message.status === "approval_required" ||
+                    message.status === "pending"),
               );
               if (index === -1) return prev;
               return prev.map((message, i) =>
@@ -409,8 +422,13 @@ export function useChat(chatId?: string) {
           });
         };
 
+        updateApproveRequiredMessage((message) => ({
+          ...message,
+          status: "pending",
+        }))
+
         await streamAI(
-          "/api/ai/apply_tool",
+          `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/ai/apply_tool`,
           { 
             requestId: requestId,
             action: action,
@@ -439,6 +457,14 @@ export function useChat(chatId?: string) {
           );
 
           return;
+        }
+
+        if (err instanceof Error) {
+          const data = JSON.parse(err.message)
+          
+          if (data.code === "INVITE_REQUIRED") {
+            setModalState(data.detail);
+          }
         }
 
         const error =
@@ -485,5 +511,5 @@ export function useChat(chatId?: string) {
     abortControllerRef.current?.abort();
   }, []);
 
-  return { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage, stopGeneration };
+  return { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage, stopGeneration, setShouldMessagesLoad };
 }

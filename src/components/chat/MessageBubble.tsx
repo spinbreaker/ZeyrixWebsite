@@ -21,6 +21,7 @@ import { CopyButton } from "./Buttons";
 import { Step } from "./AgentStep";
 import { ApprovalCard } from "./ApprovalCard";
 import { _Translator } from "next-intl";
+import { useConnection } from "../auth/ConnectionContext";
 
 function formatMessageTime(dateString: string): string {
   const t = useTranslations("message");
@@ -83,6 +84,7 @@ function UserMessage({
   setShouldScroll?: (value: SetStateAction<boolean>) => void;
 }) {
   const t = useTranslations("userMessage");
+  const { access } = useConnection();
 
   return (
     <div className="flex flex-col items-end">
@@ -130,12 +132,12 @@ function UserMessage({
 
           {retrySendMessage && (
             <button
-              className="
+              className={`
                 flex items-center gap-2
-                text-foreground-secondary
-                hover:text-foreground hover:cursor-pointer
+                ${access === "disabled" ? "text-foreground-muted/90" : "text-foreground-secondary hover:text-foreground hover:cursor-pointer"}
                 transition-colors
-              "
+              `}
+              disabled={access === "disabled"}
               onClick={() => {
                 retrySendMessage(id, text, attachments || [], notSent || false);
 
@@ -265,9 +267,9 @@ export function MessageBubble({
   const approvalDetails = steps?.at(-1)?.approvalDetails;
   steps = steps ? steps : [];
 
+  const elapsedTime = useElapsedTime(createdAt);
   const workDuration = formatDuration(
-    useElapsedTime(createdAt) +
-      (processingSeconds ? processingSeconds * 1000 : 0), t
+    processingSeconds ? processingSeconds : elapsedTime, t
   );
   const workedFor = processingSeconds
     ? formatDuration(processingSeconds * 1000, t)

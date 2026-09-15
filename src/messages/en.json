@@ -41,7 +41,9 @@
     "microphoneNotFound": "No microphone was found. Please connect a microphone and try again.",
     "microphoneUnavailable": "Your microphone is unavailable. Please make sure it isn't being used by another app.",
     "serverTranscribeError": "Speech transcription failed due to a server connection error. Please try again.",
-    "chatNotCreatedError": "We couldn't create the chat. Please check your internet connection and try again."
+    "chatNotCreatedError": "We couldn't create the chat. Please check your internet connection and try again.",
+    "accessForbiddenError": "Your access has expired, so the request cannot be completed.",
+    "accessDisabled": "No access"
   },
   "toolApproval": {
     "title": "Confirmation required",
@@ -190,5 +192,48 @@
     "worksOverline": "/ OUR WORKS",
     "worksTitle": "What We’ve Built",
     "worksButton": "See More Projects →"
+  "invite": {
+    "failedToActivate": "Failed to activate the invitation. Please try again or contact the administrator.",
+    "notFoundTitle": "Invitation not found",
+    "notFoundDescription": "Check the link or request a new invitation from the administrator.",
+    "expiredTitle": "Invitation has expired",
+    "expiredDescription": "This link is no longer valid. Request a new invitation from the administrator.",
+    "expired": "Expired",
+    "inviteUnavailable": "Invitation unavailable",
+    "inviteWasRevoked": "This invitation was revoked by the administrator.",
+    "inviteCannotBeUsed": "This invitation can no longer be used.",
+    "activated": "Access activated",
+    "hasInvite": "You have an invitation",
+    "activateAccess": "Activate access to start working with the agent.",
+    "accessUntil": "Access is valid until",
+    "accessGranted": "You can now proceed to the chat with the agent.",
+    "activating": "Activating…",
+    "activate": "Activate access",
+    "goToAgent": "Go to agent",
+    "goToMain": "Go to home",
+    "lasts": "Remaining",
+    "alreadyActivated": "Invitation already activated",
+    "activationDate": "Activation date",
+    "d": "d",
+    "h": "h",
+    "m": "m"
+  },
+  "accessDisabled": {
+    "notActivatedShort": "Agent access is not activated yet.",
+    "notActivatedLong": "Agent access is not activated yet. Sending messages is unavailable until access is activated.",
+    "getAccess": "Get access",
+    "contactOverline": "/ GET IN TOUCH",
+    "contactTitle": "Get access",
+    "contactSubtitle": "Write to us and we’ll send you a personal link to activate access.",
+    "NOT_FOUND": "Access is no longer available",
+    "NOT_FOUND_DESCRIPTION": "Your access is no longer available, so you can’t continue using the agent.",
+    "EXPIRED": "Access expired",
+    "EXPIRED_DESCRIPTION": "Your access has expired, so you can’t continue using the agent.",
+    "EXHAUSTED": "Usage limit reached",
+    "EXHAUSTED_DESCRIPTION": "Your access has reached its usage limit, so you can’t continue using the agent.",
+    "REVOKED": "Access revoked",
+    "REVOKED_DESCRIPTION": "Your access was revoked by an admin, so you can’t continue using the agent.",
+    "gotIt": "Got it",
+    "messageForSupport": "Hello! I'd like to get access to the agent. Please send me a personal link to activate access."
   }
 }

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, Dispatch, SetStateAction } from "react";
 import type { PendingAttachment, PresignResponse } from "@/src/types/chat";
 import { cacheImage } from "../lib/ImageCache";
 import { useChatDraft } from "./useChatDraftStore";
+import { AccessInfoModalStatus } from "../components/modals/accessInfo";
 
-export function useFileUpload(chatId?: string) {
+export function useFileUpload(setModalState: Dispatch<SetStateAction<AccessInfoModalStatus | null>>, chatId?: string) {
   const { setAttachments, draft } = useChatDraft(chatId);
   const attachments = draft.attachments
 
@@ -38,7 +39,17 @@ export function useFileUpload(chatId?: string) {
         size: file.size,
       }),
     });
-    if (!presignRes.ok) throw new Error(`${presignRes.status}`);
+
+    if (!presignRes.ok) {
+      const error = await presignRes.json();
+
+      if (error.code === "INVITE_REQUIRED") {
+        setModalState(error.detail);
+      }
+
+      throw new Error(`${presignRes.status}`);
+    }
+
     const { uploadUrl, fileId }: PresignResponse = await presignRes.json();
 
     // Step 2: PUT to storage & cache to IDB
@@ -106,7 +117,15 @@ export function useFileUpload(chatId?: string) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileId: fileId }),
       });
-      if (!res.ok) throw new Error(`Backend returned ${res.status}`);
+      if (!res.ok) {
+        const error = await res.json();
+
+        if (error.code === "INVITE_REQUIRED") {
+          setModalState(error.detail);
+        }
+
+        throw new Error(`${res.status}`);
+      }
 
       const data = await res.json();
 

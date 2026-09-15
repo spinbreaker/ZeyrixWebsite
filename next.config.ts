@@ -26,15 +26,16 @@ const nextConfig: NextConfig = {
     },
   },
   async rewrites() {
-    const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8000";
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL;
 
-    return [{ source: "/api/:path*", destination: `${backendUrl}/v1/:path*` }];
+    return [{ source: "/api/:path*", destination: `${backendUrl}/:path*` }];
   },
   allowedDevOrigins: [
     // '*.ngrok-free.app',
     // '*.ngrok.io',
     // '*.ngrok-free.dev',
     "pleasedly-fossillike-arlena.ngrok-free.dev",
+    "192.168.0.100",
   ],
 };
 
