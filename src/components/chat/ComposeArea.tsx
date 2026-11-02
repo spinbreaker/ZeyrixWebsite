@@ -9,9 +9,9 @@ import ErrorIcon from "@/src/icons/warning.svg";
 import StopIcon from "@/src/icons/stop.svg";
 import ArrowIcon from "@/src/icons/arrow.svg";
 
-import { useRef, useState, SetStateAction, Dispatch } from "react";
+import { useRef, useState, SetStateAction, Dispatch, useEffect } from "react";
 import { useConnection } from "../auth/ConnectionContext";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useFileUpload } from "@/src/hooks/useFileUpload";
 import { AttachmentCard } from "./Attachment";
 import { mapAttachments, Attachment } from "@/src/types/chat";
@@ -20,6 +20,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useChatDraft } from "@/src/hooks/useChatDraftStore";
 import { AccessInfoModalStatus, AccessInfoModal } from "../modals/accessInfo";
+import { notifyChatRouteChanged } from "@/src/hooks/useChatRoute";
 
 type ComposeAreaProps = {
   chatId?: string;
@@ -35,6 +36,7 @@ type ComposeAreaProps = {
     setComposeError: Dispatch<SetStateAction<"forbidden" | "chat-not-created" | null>>,
     setModalState: Dispatch<SetStateAction<AccessInfoModalStatus | null>>,
   ) => Promise<string>;
+  creatingChat: boolean;
   isNewChat: boolean;
   isToolRequestPending: boolean;
   failedToLoad: boolean;
@@ -50,6 +52,7 @@ export function ComposeArea({
   sendMessage,
   sending,
   createChat,
+  creatingChat,
   isNewChat,
   isToolRequestPending,
   failedToLoad,
@@ -62,7 +65,8 @@ export function ComposeArea({
   const t = useTranslations("composeArea");
 
   const { state, access } = useConnection();
-  const canInteract = state === "ready" && !failedToLoad && access === "granted";
+  const canInteract =
+    state === "ready" && !failedToLoad && access === "granted" && !creatingChat;
   const pathname = usePathname();
   const [composeError, setComposeError] = useState<"chat-not-created" | "forbidden" | null>(null);
 
@@ -98,19 +102,18 @@ export function ComposeArea({
     },
   });
 
-  const { setMessage, draft, setAttachments } = useChatDraft(chatId);
+  const { setMessage, draft, setAttachments, clearDraft } = useChatDraft(chatId);
   const message = draft.message;
 
   const canSend =
     message.trim().length > 0 &&
     canInteract &&
     !sending &&
+    !creatingChat &&
     !isUploading &&
     !isToolRequestPending;
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const router = useRouter();
 
   const handleFiles = (files: File[]) => {
       files.forEach(addAttachment);
@@ -133,25 +136,40 @@ export function ComposeArea({
     textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
   }
 
+  useEffect(() => {
+    resizeTextarea();
+  }, [message]);
+
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setMessage(e.target.value);
     resizeTextarea();
   }
 
+  function isCoarsePointer() {
+    if (typeof window == "undefined") return false;
+    return window.matchMedia("(pointer: coarse)").matches;
+  }
+
   async function handleSend() {
     if (!canSend) return;
 
-    setMessage("");
-
     const attachmentsToSend = attachments.filter((att) => att.status === "done").map(mapAttachments);
-    setAttachments([]);
 
     try {
       if (chatId) {
+        setMessage("");
+        setAttachments([]);
         await sendMessage(message, attachmentsToSend, readyFileIds);
       } else {
         const newChatId = await createChat(message, setComposeError, setModalState);
-        router.replace(`/chat/${newChatId}`, { scroll: false });
+        const chatPath = pathname.slice(0, pathname.indexOf("/chat") + 5);
+        window.history.replaceState(
+          {},
+          "",
+          `${chatPath}?chat=${encodeURIComponent(newChatId)}`,
+        );
+        notifyChatRouteChanged();
+        clearDraft();
         await sendMessage(message, attachmentsToSend, readyFileIds, newChatId);
       }
     } catch {
@@ -160,7 +178,9 @@ export function ComposeArea({
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.focus();
+      if (!isCoarsePointer()) {
+        textareaRef.current.focus();
+      }
     }
   }
 
@@ -358,7 +378,7 @@ export function ComposeArea({
                   <MicroIcon className={`${canInteract ? "text-foreground-secondary" : "text-foreground-muted/90"} size-5`} />
                 </button>
                 
-                {!sending ? (
+                {!sending && !creatingChat ? (
                   <button
                     disabled={!canSend}
                     className={`
@@ -369,6 +389,15 @@ export function ComposeArea({
                     onClick={handleSend}
                   >
                     <SendIcon className="size-3 text-primary-surface" />
+                  </button>
+                ) : creatingChat ? (
+                  <button
+                    type="button"
+                    disabled
+                    aria-label="Creating chat"
+                    className="size-8 rounded-lg flex items-center justify-center bg-primary/50"
+                  >
+                    <span className="size-4 animate-spin rounded-full border-2 border-primary-surface/40 border-t-primary-surface" />
                   </button>
                 ) : (
                   <button

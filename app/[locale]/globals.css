@@ -152,6 +152,30 @@
   background-image: url('/icons/logoMain.svg');
 }
 
+.legal-page {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 75% 16%, rgba(255, 214, 0, 0.045), transparent 24rem),
+    var(--color-background);
+}
+
+.legal-content {
+  padding-top: 3.5rem;
+}
+
+.legal-section-nav {
+  scrollbar-width: none;
+}
+
+.legal-section-nav::-webkit-scrollbar,
+.legal-section-nav *::-webkit-scrollbar {
+  display: none;
+}
+
+.legal-section-link {
+  flex: 0 0 auto;
+}
+
 @keyframes invite-pulse {
   0%,
   100% {
@@ -166,6 +190,76 @@
 
 .animate-invite-pulse {
   animation: invite-pulse 2s ease-in-out infinite;
+}
+
+.login-shell {
+  background:
+    radial-gradient(circle at 15% 10%, rgba(255, 214, 0, 0.09), transparent 28rem),
+    radial-gradient(circle at 90% 85%, rgba(42, 171, 238, 0.07), transparent 24rem),
+    var(--color-background);
+}
+
+.login-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(ellipse at center, black, transparent 72%);
+}
+
+.login-orb {
+  position: absolute;
+  width: 15rem;
+  height: 15rem;
+  border-radius: 999px;
+  filter: blur(60px);
+  opacity: 0.15;
+  pointer-events: none;
+  animation: login-float 9s ease-in-out infinite;
+}
+
+.login-orb-one {
+  top: 12%;
+  left: 8%;
+  background: var(--color-primary);
+}
+
+.login-orb-two {
+  right: 8%;
+  bottom: 10%;
+  background: #2aabee;
+  animation-delay: -4s;
+}
+
+.login-card {
+  animation: login-card-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.login-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.6rem 0.8rem;
+  color: var(--color-foreground-muted);
+  font-size: 0.75rem;
+  animation: login-chip-in 0.6s ease-out both;
+}
+
+@keyframes login-card-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes login-chip-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes login-float {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(18px, -14px, 0) scale(1.08); }
 }
 
 .invite-check-draw {
@@ -185,4 +279,189 @@
   .invite-check-draw {
     animation: none !important;
   }
+
+  .login-card,
+  .login-chip,
+  .login-orb {
+    animation: none !important;
+  }
+}
+
+/* ===========================
+   Mammoth DOCX Preview
+   =========================== */
+
+.docx-mammoth {
+  color: var(--foreground);
+  font-family: inherit;
+  line-height: 1.6;
+  max-width: 100%;
+}
+
+/* Заголовки */
+.docx-mammoth h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 1.4em 0 0.6em;
+  line-height: 1.25;
+}
+
+.docx-mammoth h2 {
+  font-size: 1.25rem;
+  font-weight: 650;
+  margin: 1.3em 0 0.5em;
+}
+
+.docx-mammoth h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 1.2em 0 0.4em;
+}
+
+.docx-mammoth p {
+  margin: 0.55em 0;
+  line-height: 1.6;
+}
+
+.docx-mammoth ul,
+.docx-mammoth ol {
+  margin: 0.6em 0;
+  padding-left: 1.5em;
+}
+
+.docx-mammoth a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ===========================
+   Таблицы (жёстко под тему)
+   =========================== */
+
+.docx-mammoth table {
+  width: 100% !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  margin: 1.25em 0 !important;
+  border: 1px solid var(--primary) !important;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background-color: var(--elevated) !important;
+  font-size: 0.875rem;
+}
+
+.docx-mammoth th,
+.docx-mammoth td {
+  padding: 0.55rem 0.75rem !important;
+  vertical-align: top;
+  color: var(--foreground) !important;
+  background-color: transparent !important;
+  border-style: solid !important;
+  border-width: 0 1px 1px 0 !important;
+  border-color: var(--primary) !important;
+}
+
+/* Убираем лишние границы */
+.docx-mammoth th:last-child,
+.docx-mammoth td:last-child {
+  border-right-width: 0 !important;
+}
+
+.docx-mammoth tr:last-child th,
+.docx-mammoth tr:last-child td {
+  border-bottom-width: 0 !important;
+}
+
+/* Шапка таблицы */
+.docx-mammoth th {
+  background-color: color-mix(in srgb, var(--primary) 14%, var(--elevated)) !important;
+  font-weight: 600;
+}
+
+/* Чередование строк */
+.docx-mammoth tr:nth-child(even) td {
+  background-color: color-mix(in srgb, var(--elevated) 82%, var(--background)) !important;
+}
+
+/* ===========================
+   Разрыв страницы
+   =========================== */
+
+.docx-mammoth hr.docx-page-break {
+  border: none;
+  height: 0;
+  margin: 2.5rem 0;
+  border-top: 2px dashed var(--border);
+  position: relative;
+}
+
+.docx-mammoth hr.docx-page-break::after {
+  content: "page break";
+  position: absolute;
+  top: -0.7em;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--background);
+  padding: 0 0.75rem;
+  font-size: 0.7rem;
+  color: var(--foreground-muted, var(--foreground));
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Если не нужен текст "page break" — просто убери ::after */
+
+/* ===========================
+   Остальное
+   =========================== */
+
+.docx-mammoth img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+  margin: 0.75em 0;
+}
+
+.docx-mammoth blockquote {
+  margin: 1em 0;
+  padding: 0.6em 1em;
+  border-left: 3px solid var(--primary);
+  background: var(--elevated);
+  border-radius: 0 0.375rem 0.375rem 0;
+}
+
+@media (max-width: 640px) {
+  .docx-mammoth table {
+    font-size: 0.8125rem;
+  }
+
+  .docx-mammoth th,
+  .docx-mammoth td {
+    padding: 0.45rem 0.6rem !important;
+  }
+}
+
+.legal-scrollbar {
+  overflow-x: scroll;
+  scrollbar-width: auto; /* Firefox */
+  scrollbar-color: #888 transparent;
+}
+
+.legal-scrollbar::-webkit-scrollbar {
+  height: 8px;
+}
+
+.legal-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.legal-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 999px;
+}
+
+.legal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #666;
 }

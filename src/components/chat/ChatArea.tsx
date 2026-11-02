@@ -138,9 +138,40 @@ export function ChatArea({
     }
   }, [messages, showMessages, chatId]);
 
+  useEffect(() => {
+    if (!showMessages || !shouldAutoScrollRef.current) return;
+    const bottom = bottomRef.current;
+    if (!bottom) return;
+
+    const ro = new ResizeObserver(() => {
+      if (shouldAutoScrollRef.current) {
+        bottom.scrollIntoView({ behavior: "smooth", block: "end" })
+      }
+    });
+    ro.observe(bottom);
+    return () => ro.disconnect();
+  }, [showMessages, messages.length]);
+
   if (showLoading) {
     return (
-      <div className="w-full h-full flex justify-center items-center px-6" />
+      <div className="w-full h-full overflow-y-auto px-6 py-6">
+        <div className="mx-auto flex max-w-190 flex-col gap-6">
+          {[0, 1, 2].map((item) => (
+            <div
+              key={item}
+              className={`flex ${item % 2 === 0 ? "justify-start" : "justify-end"}`}
+            >
+              <div
+                className={`relative h-16 w-2/3 overflow-hidden rounded-2xl bg-surface ${
+                  item % 2 === 0 ? "rounded-tl-sm" : "rounded-tr-sm"
+                }`}
+              >
+                <div className="absolute inset-0 animate-shimmer bg-linear-to-r from-transparent via-white/10 to-transparent" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     );
   }
 

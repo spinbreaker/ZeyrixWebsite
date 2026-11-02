@@ -7,10 +7,13 @@ import {
   Attachment,
   StreamEvent,
   AgentStep,
+  GeneratedFile,
 } from "../types/chat";
 import { useLocale } from "next-intl";
 import { useConnection } from "../components/auth/ConnectionContext";
+import { apiFetch } from "../lib/api";
 import { AccessInfoModalStatus } from "../components/modals/accessInfo";
+import { cacheFile } from "../lib/FileCache";
 
 const optimisticMessagesByChatId = new Map<string, Message[]>();
 
@@ -28,6 +31,38 @@ function clearOptimisticMessages(chatId?: string) {
   if (!chatId) return;
 
   optimisticMessagesByChatId.delete(chatId);
+}
+
+function generatedFileToAttachment(file: GeneratedFile): Attachment {
+  return {
+    fileId: file.id,
+    filename: file.filename,
+    mimeType: file.mimeType,
+    size: file.sizeBytes,
+  };
+}
+
+function normalizeAttachment(attachment: Attachment & { sizeBytes?: number }) {
+  const rawSize = attachment.sizeBytes ?? attachment.size;
+  const size = typeof rawSize === "number"
+    ? rawSize
+    : Number.parseFloat(String(rawSize)) * (String(rawSize).includes("MB") ? 1024 * 1024 : 1);
+
+  return { ...attachment, size: Number.isFinite(size) ? size : 0 };
+}
+
+function normalizeMessage(message: Message & {
+  generatedFiles?: GeneratedFile[];
+  generatedImages?: GeneratedFile[];
+}): Message {
+  const generatedFiles = message.generatedFiles ?? message.generatedImages ?? [];
+  return {
+    ...message,
+    attachments: [
+      ...(message.attachments ?? []).map(normalizeAttachment),
+      ...generatedFiles.map(generatedFileToAttachment),
+    ],
+  };
 }
 
 export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalStatus | null>>, chatId?: string) {
@@ -70,12 +105,12 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
       }
 
       try {
-        const res = await fetch(`/api/chats/${chatId}/get_messages`, {
+        const res = await apiFetch(`/api/chats/${chatId}/get_messages`, {
           credentials: "include",
         });
 
         if (!res.ok) throw new Error(`Backend вернул ${res.status}`);
-        const data: Message[] = await res.json();
+        const data: Message[] = (await res.json()).map(normalizeMessage);
 
         if (!cancelled) {
           if (data.length > 0) {
@@ -162,6 +197,31 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
     }
   }
 
+  async function cacheGeneratedFiles(files: GeneratedFile[]) {
+    await Promise.all(
+      files.map(async (file) => {
+        try {
+          const tokenResponse = await apiFetch(`/api/files/${file.accessToken}`, {
+            credentials: "include",
+          });
+          if (!tokenResponse.ok) {
+            throw new Error(`Token endpoint returned ${tokenResponse.status}`);
+          }
+
+          const { url }: { url: string } = await tokenResponse.json();
+          const fileResponse = await fetch(url);
+          if (!fileResponse.ok) {
+            throw new Error(`File download returned ${fileResponse.status}`);
+          }
+
+          await cacheFile(file.id, await fileResponse.blob());
+        } catch (error) {
+          console.error(`Failed to cache generated file ${file.id}`, error);
+        }
+      }),
+    );
+  }
+
   function handleStreamEvent(
     event: StreamEvent,
     updateMessage: (updater: (message: Message) => Message) => void,
@@ -181,7 +241,16 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
 
         updateMessage((message) => ({
           ...message,
-          steps: [...(message.steps ?? []), newStep],
+          streamingReasoning:
+            event.kind === "reasoning"
+              ? undefined
+              : message.streamingReasoning,
+          steps: [
+            ...(message.steps ?? []),
+            event.kind === "reasoning" && !event.label
+              ? { ...newStep, label: message.streamingReasoning ?? "" }
+              : newStep,
+          ],
         }));
         break;
       }
@@ -206,7 +275,7 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
       case "text_delta":
         updateMessage((message) => ({
           ...message,
-          text: message.text + event.delta,
+          streamingReasoning: (message.streamingReasoning ?? "") + event.delta,
         }));
         break;
 
@@ -215,10 +284,19 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
           ...message,
           status: event.status,
           text: event.content,
+          streamingReasoning: undefined,
+          steps: event.steps ?? message.steps,
           processingSeconds:
             (message.processingSeconds ?? 0) +
             event.processingSeconds,
+          attachments: [
+            ...(message.attachments ?? []),
+            ...(event.generatedFiles ?? []).map(generatedFileToAttachment),
+          ],
         }));
+        void cacheGeneratedFiles(
+          event.generatedFiles ?? [],
+        );
         break;
 
       case "error":
@@ -226,6 +304,7 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
           ...message,
           status: "error",
           text: event.message,
+          streamingReasoning: undefined,
         }));
         break;
     }

@@ -1,47 +1,10 @@
-"use client";
+import ServiceClient from "./ServiceClient";
+import { services } from "@/src/data/services";
 
-import { HeaderMobile } from "@/src/components/header/mobile";
-import { FooterMobile } from "@/src/components/footer/mobile";
-import { OpenAgentButton } from "@/src/components/reusable/buttons";
-import { ServiceHero } from "@/src/components/services/single/hero";
-import { ServiceOverview } from "@/src/components/services/single/overview";
-import { ServiceProcess } from "@/src/components/services/single/process";
-import { ServiceTech } from "@/src/components/services/single/tech";
-import { ServiceRelatedCases } from "@/src/components/services/single/relatedCases";
-import { ServiceFAQ } from "@/src/components/services/single/faq";
-import { ServiceCTA } from "@/src/components/services/single/cta";
-import { useParams } from 'next/navigation';
-import { ServiceNotFound } from './ServiceNotFound';
-import { services } from '../../../../src/data/services';
+export function generateStaticParams() {
+  return Object.keys(services).map((name) => ({ name }));
+}
 
-export default function Service() {
-    const params = useParams<{ name?: string | string[] }>();
-    const serviceName = Array.isArray(params.name)
-        ? params.name[0]
-        : params.name;
-
-    const currentService = serviceName ? services[serviceName] : null;
-
-    return (
-        <>
-        {currentService ? (
-            <div className="mt-14">
-                <HeaderMobile />
-
-                <ServiceHero service={currentService} />
-                <ServiceOverview service={currentService} />
-                <ServiceProcess service={currentService} />
-                <ServiceTech service={currentService} />
-                <ServiceRelatedCases service={currentService} />
-                <ServiceFAQ service={currentService} />
-                <ServiceCTA service={currentService} />
-
-                <OpenAgentButton />
-                <FooterMobile />
-            </div>
-        ) : (
-            <ServiceNotFound />
-        )}
-        </>
-    );
+export default function ServicePage() {
+  return <ServiceClient />;
 }

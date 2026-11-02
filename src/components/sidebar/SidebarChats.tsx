@@ -2,12 +2,13 @@
 
 import DotsIcon from "@/src/icons/dots.svg";
 import { Chat } from "@/src/types/chat";
-import { useRouter, useParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import RenameIcon from "@/src/icons/rename.svg";
 import DeleteIcon from "@/src/icons/delete.svg";
 import { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
+import { notifyChatRouteChanged, useChatRoute } from "@/src/hooks/useChatRoute";
 
 type GlobalProps = {
   renameChat: (chatId: string, newTitle: string) => Promise<undefined>;
@@ -22,6 +23,7 @@ type GroupOfChatsProps = GlobalProps & {
 
 type SidebarChatsProps = GlobalProps & {
   chats: Chat[];
+  loading?: boolean;
 };
 
 type GroupedChats = {
@@ -36,10 +38,8 @@ type AIChatProps = Chat & GlobalProps;
 function AIChat({ id, name, renameChat, deleteChat, onClose }: AIChatProps) {
   const t = useTranslations("chat");
   const router = useRouter();
-  const params = useParams<{ chatId?: string | string[] }>();
-  const currentChatId = Array.isArray(params.chatId)
-    ? params.chatId[0]
-    : params.chatId;
+  const pathname = usePathname();
+  const currentChatId = useChatRoute(pathname);
   const isSelected = currentChatId === id;
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -136,7 +136,13 @@ function AIChat({ id, name, renameChat, deleteChat, onClose }: AIChatProps) {
             return;
           }
           
-          router.push(`/chat/${id}`, { scroll: false });
+          const chatPath = pathname.slice(0, pathname.indexOf("/chat") + 5);
+          window.history.pushState(
+            {},
+            "",
+            `${chatPath}?chat=${encodeURIComponent(id)}`,
+          );
+          notifyChatRouteChanged();
           if (onClose) {onClose();}
         }}
       >
@@ -339,11 +345,28 @@ function groupChats(chats: Chat[]): GroupedChats {
 
 export function SidebarChats({
   chats,
+  loading = false,
   deleteChat,
   renameChat,
   onClose,
 }: SidebarChatsProps) {
   const t = useTranslations("sidebarChats");
+
+  if (loading) {
+    return (
+      <div className="flex-1 overflow-y-auto px-6 pt-3 flex flex-col gap-3">
+        <div className="h-3 w-16 animate-pulse rounded bg-surface" />
+        {[0, 1, 2, 3, 4].map((item) => (
+          <div
+            key={item}
+            className="relative h-8 overflow-hidden rounded-md bg-surface"
+          >
+            <div className="absolute inset-0 animate-shimmer bg-linear-to-r from-transparent via-white/10 to-transparent" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   if (!chats) {
     return (

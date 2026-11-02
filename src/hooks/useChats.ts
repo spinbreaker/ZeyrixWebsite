@@ -2,24 +2,26 @@ import { Chat, ApiChat, mapChat } from "../types/chat";
 import { useEffect, useState, useCallback, Dispatch, SetStateAction } from "react";
 import { useConnection } from "../components/auth/ConnectionContext";
 import { AccessInfoModalStatus } from "../components/modals/accessInfo";
+import { apiFetch } from "../lib/api";
 
 export function useChats() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const {  state } = useConnection();
+  const [creating, setCreating] = useState(false);
+  const { state, auth } = useConnection();
 
   useEffect(() => {
     async function loadChats() {
       setLoading(true);
       setError(null);
 
-      if (state !== "ready") {
+      if (state !== "ready" || auth !== "authenticated") {
         return;
       }
 
       try {
-        const res = await fetch("/api/chats/get_all_chats", {
+        const res = await apiFetch("/api/chats/get_all_chats", {
           credentials: "include",
         });
 
@@ -36,7 +38,7 @@ export function useChats() {
     }
 
     loadChats();
-  }, [state]);
+  }, [state, auth]);
 
   const createChat = useCallback(
     async (
@@ -45,9 +47,10 @@ export function useChats() {
       setModalState: Dispatch<SetStateAction<AccessInfoModalStatus | null>>,
     ): Promise<string> => {
       setError(null);
+      setCreating(true);
 
       try {
-        const res = await fetch("/api/chats/create", {
+        const res = await apiFetch("/api/chats/create", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -78,6 +81,8 @@ export function useChats() {
 
         setError(error);
         throw err;
+      } finally {
+        setCreating(false);
       }
     },
     [],
@@ -88,7 +93,7 @@ export function useChats() {
       setError(null);
 
       try {
-        const res = await fetch("/api/chats/rename", {
+        const res = await apiFetch("/api/chats/rename", {
           method: "PATCH",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -114,7 +119,7 @@ export function useChats() {
     setError(null);
 
     try {
-      const res = await fetch("/api/chats/delete", {
+      const res = await apiFetch("/api/chats/delete", {
         method: "DELETE",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -133,5 +138,5 @@ export function useChats() {
     }
   }, []);
 
-  return { chats, createChat, renameChat, deleteChat, loading };
+  return { chats, createChat, renameChat, deleteChat, loading, creating };
 }

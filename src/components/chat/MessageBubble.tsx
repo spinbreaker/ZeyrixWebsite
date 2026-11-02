@@ -110,10 +110,12 @@ function UserMessage({
 
       {status === "error" && (
         <div className="mt-1.5 flex flex-col items-end gap-2 text-caption">
-          <div className="flex items-center gap-1 text-error">
-            <ErrorIcon className="size-3.5 shrink-0" />
-            <p>{notSent ? t("notSent") : t("notTransmitted")}</p>
-          </div>
+          {notSent && (
+            <div className="flex items-center gap-1 text-error">
+              <ErrorIcon className="size-3.5 shrink-0" />
+              <p>{t("notSent")}</p>
+            </div>
+          )}
 
           {/* <button
               className="
@@ -127,7 +129,7 @@ function UserMessage({
               }}
             >
               <RedactIcon className="size-3.5" />
-              <span>Редактировать</span>
+              <span>Redact</span>
           </button> */}
 
           {retrySendMessage && (
@@ -221,7 +223,7 @@ function formatDuration(ms: number, t: _Translator<Record<string, any>>): string
     return `${seconds}${t("s")}`;
   }
 
-  const minutes = Math.round(seconds / 60);
+  const minutes = Math.floor(seconds / 60);
   const restSeconds = seconds % 60;
 
   return `${minutes}${t("m")} ${restSeconds}${t("s")}`;
@@ -255,6 +257,7 @@ export function MessageBubble({
   steps,
   createdAt,
   processingSeconds,
+  streamingReasoning,
   id,
 }: Message) {
   const t = useTranslations("agentSteps");
@@ -264,6 +267,9 @@ export function MessageBubble({
   const [isStepsExtended, setIsStepsExtended] = useState(
     status === "pending",
   );
+  useEffect(() => {
+    setIsStepsExtended(status === "pending");
+  }, [status]);
   const approvalDetails = steps?.at(-1)?.approvalDetails;
   steps = steps ? steps : [];
 
@@ -293,9 +299,13 @@ export function MessageBubble({
               <div
                 className={`
                     flex flex-row items-center gap-2 w-fit text-foreground-muted
-                    ${steps.length > 0 && "hover:cursor-pointer hover:text-foreground-secondary"}
+                    ${(steps.length > 0 && status !== "pending") && "hover:cursor-pointer hover:text-foreground-secondary"}
                 `}
-                onClick={() => setIsStepsExtended((prev) => !prev)}
+                onClick={() => {
+                  if (status !== "pending") {
+                    setIsStepsExtended((prev) => !prev);
+                  }
+                }}
               >
                 {status === "pending" ? (
                   <p className="text-caption">
@@ -311,7 +321,7 @@ export function MessageBubble({
                   </p>
                 )}
                 <ArrowIcon
-                  className={`size-2 ${isStepsExtended && "rotate-90"} ${steps.length === 0 && "hidden"}`}
+                  className={`size-2 ${isStepsExtended && "rotate-90"} ${(steps.length === 0 || status === "pending") && "hidden"}`}
                 />
               </div>
 
@@ -331,25 +341,41 @@ export function MessageBubble({
                     key={step.id}
                     {...step}
                     isLast={index === steps.length - 1}
+                    isNextReasoning={steps.at(index+1)?.kind === "reasoning"}
                   />
                 ))}
+                {streamingReasoning && (
+                  <Step
+                    id="streaming-reasoning"
+                    kind="reasoning"
+                    status="in_progress"
+                    label={streamingReasoning}
+                    isLast
+                  />
+                )}
               </div>
             </div>
 
-            {text && (
-              <>
-                <MarkdownMessage text={adaptedText} />
+            {text && <MarkdownMessage text={adaptedText} />}
 
-                <div className="flex flex-row items-center">
-                  <CopyButton content={adaptedText} />
-                  <button className="p-2 rounded-lg hover:bg-elevated hover:cursor-pointer">
-                    <LikeIcon className="text-foreground size-4" />
-                  </button>
-                  <button className="p-2 rounded-lg hover:bg-elevated hover:cursor-pointer">
-                    <LikeIcon className="text-foreground size-4 scale-y-[-1]" />
-                  </button>
-                </div>
-              </>
+            {attachments && attachments.length > 0 && (
+              <div className="flex max-w-full gap-2 overflow-x-auto pb-1 scrollbar-thin overflow-y-hidden">
+                {attachments.map((attachment) => (
+                  <MessageAttachment key={attachment.fileId} {...attachment} />
+                ))}
+              </div>
+            )}
+
+            {status === "completed" && (
+              <div className="flex flex-row items-center">
+                <CopyButton content={adaptedText} />
+                <button className="p-2 rounded-lg hover:bg-elevated hover:cursor-pointer">
+                  <LikeIcon className="text-foreground size-4" />
+                </button>
+                <button className="p-2 rounded-lg hover:bg-elevated hover:cursor-pointer">
+                  <LikeIcon className="text-foreground size-4 scale-y-[-1]" />
+                </button>
+              </div>
             )}
 
             {status === "approval_required" && (

@@ -1,7 +1,7 @@
 import { SetStateAction } from "react";
 
 export type StepStatus = "in_progress" | "done" | "error" | "awaiting_approval" | "denied" | "expired" | "forbidden"
-export type StepKind = "tool_call" | "reasoning" | "file_transcribe"
+export type StepKind = "tool_call" | "reasoning"
 
 export type ToolDetails = {
   auditLogId?: string;
@@ -25,13 +25,21 @@ export interface AgentStep {
   toolDetails?: ToolDetails;
   failedGeneration?: FailedGeneration;
   isLast?: boolean;
+  isNextReasoning?: boolean;
 }
 
 export type StreamEvent =
   | { type: "step_start"; id: string; kind: StepKind; label: string; status: StepStatus; toolName?: string; approvalDetails?: ApprovalDetails; toolDetails?: ToolDetails; failedGeneration?: FailedGeneration }
   | { type: "step_update"; id: string; status: StepStatus; approvalDetails?: ApprovalDetails; toolDetails?: ToolDetails; failedGeneration?: FailedGeneration }
   | { type: "text_delta"; delta: string }
-  | { type: "done"; status: "completed" | "approval_required"; content: string; steps: AgentStep[]; processingSeconds: number }
+  | {
+      type: "done";
+      status: "completed" | "approval_required";
+      content: string;
+      steps: AgentStep[];
+      processingSeconds: number;
+      generatedFiles?: GeneratedFile[];
+    }
   | { type: "error"; message: string };
 
 export type ApprovalDetails = {
@@ -57,6 +65,7 @@ export type Message = {
   createdAt: string;
   processingSeconds?: number;
   steps?: AgentStep[];
+  streamingReasoning?: string;
   notSent?: boolean;
   applyToolUse: (
     requestId: string,
@@ -75,7 +84,16 @@ export type Attachment = {
   fileId: string;
   filename: string;
   mimeType: string;
-  size: string;
+  size: number;
+};
+
+export type GeneratedFile = {
+  type: "document" | "image";
+  id: string;
+  accessToken: string;
+  mimeType: string;
+  filename: string;
+  sizeBytes: number;
 };
 
 export type ApiChat = {
@@ -116,14 +134,11 @@ export function mapAttachments(attachment: PendingAttachment): Attachment {
     throw new Error("Attachment has no fileId");
   }
 
-  const size = attachment.file.size;
-  const sizeMB = `${(size / (1024 * 1024)).toFixed(2)} MB`;
-
   return {
     fileId: attachment.fileId ?? crypto.randomUUID(),
     mimeType: attachment.file.type,
     filename: attachment.file.name,
-    size: sizeMB,
+    size: attachment.file.size,
   };
 }
 
