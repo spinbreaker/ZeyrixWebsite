@@ -20,7 +20,7 @@ export default function Service() {
         ? params.name[0]
         : params.name;
 
-    const currentService = services[serviceName ?? ""];
+    const currentService = serviceName ? services[serviceName] : null;
 
     return (
         <>
@@ -29,12 +29,12 @@ export default function Service() {
                 <HeaderMobile />
 
                 <ServiceHero service={currentService} />
-                <ServiceOverview />
-                <ServiceProcess />
-                <ServiceTech />
-                <ServiceRelatedCases />
-                <ServiceFAQ />
-                <ServiceCTA />
+                <ServiceOverview service={currentService} />
+                <ServiceProcess service={currentService} />
+                <ServiceTech service={currentService} />
+                <ServiceRelatedCases service={currentService} />
+                <ServiceFAQ service={currentService} />
+                <ServiceCTA service={currentService} />
 
                 <OpenAgentButton />
                 <FooterMobile />
