@@ -1,6 +1,6 @@
-import { Service } from "@/src/data/services";
+import { ServiceProps } from "@/src/data/services";
 
-export function ServiceRelatedCases(service: Service) {
+export function ServiceRelatedCases({ service }: ServiceProps) {
     return (
         <div>
             

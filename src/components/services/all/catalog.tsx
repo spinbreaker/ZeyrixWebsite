@@ -1,6 +1,8 @@
-import { randomUUID } from "crypto";
+"use client";
+
 import { PrimaryButton, SecondaryButton } from "@/src/components/reusable/buttons";
-import { services, Service } from "@/src/data/services";
+import { services, ServiceProps } from "@/src/data/services";
+import { useRouter } from "next/navigation";
 
 function Tag({ text }: { text: string }) {
     return (
@@ -10,7 +12,10 @@ function Tag({ text }: { text: string }) {
     );
 }
 
-function Service({ preview }: Service) {
+function Service({ service, id }: ServiceProps) {
+    const preview = service.preview;
+    const router = useRouter();
+
     return (
         <div className="bg-surface border border-border p-6 rounded-2xl flex flex-col gap-6 items-center">
             <img src={preview.url} alt="image" className="rounded-lg" />
@@ -28,25 +33,23 @@ function Service({ preview }: Service) {
                 <div className="w-full flex flex-row justify-center">
                     <div className="flex flex-row overflow-x-auto gap-2 w-fit">
                         {preview.tags.map((text) => (
-                            <Tag key={randomUUID()} text={text} />
+                            <Tag key={text} text={text} />
                         ))}
                     </div>
                 </div>
     
-                <PrimaryButton text="Primary" />
-                <SecondaryButton text="Secondary" />
+                <PrimaryButton text="Learn more →" onClick={() => router.push(`/services/${id}`)} />
+                <SecondaryButton text="Ask AI" />
             </div>
         </div>
     )
 }
 
 export function ServicesCatalog() {
-    const servicesArray = Object.values(services);
-
     return (
         <div className="bg-background px-6 py-12 flex flex-col gap-6">
-            {servicesArray.map((service) => (
-                <Service key={service.preview.title} preview={service.preview} />
+            {Object.entries(services).map(([id, service]) => (
+                <Service key={service.preview.title} service={service} id={id} />
             ))}
         </div>
     );
