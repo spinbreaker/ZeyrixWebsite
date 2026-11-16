@@ -8,6 +8,7 @@ import CloseIcon from "@/src/icons/close.svg";
 import ErrorIcon from "@/src/icons/warning.svg";
 import StopIcon from "@/src/icons/stop.svg";
 import ArrowIcon from "@/src/icons/arrow.svg";
+import WaveformIcon from "@/src/icons/waveform.svg";
 
 import { useRef, useState, SetStateAction, Dispatch, useEffect } from "react";
 import { useConnection } from "../auth/ConnectionContext";
@@ -378,7 +379,7 @@ export function ComposeArea({
                   <MicroIcon className={`${canInteract ? "text-foreground-secondary" : "text-foreground-muted/90"} size-5`} />
                 </button>
                 
-                {!sending && !creatingChat ? (
+                {!sending && !creatingChat && canSend ? (
                   <button
                     disabled={!canSend}
                     className={`
@@ -389,6 +390,17 @@ export function ComposeArea({
                     onClick={handleSend}
                   >
                     <SendIcon className="size-3 text-primary-surface" />
+                  </button>
+                ) : !sending && !creatingChat && !canSend ? (
+                  <button
+                    disabled={canSend}
+                    className={`
+                      size-8 rounded-lg flex items-center justify-center
+                      transition-all duration-200
+                      ${!canSend ? "bg-primary cursor-pointer hover:bg-primary-hover transition-colors" : "bg-primary/50"}
+                    `}
+                  >
+                    <WaveformIcon className="size-5 text-primary-surface" />
                   </button>
                 ) : creatingChat ? (
                   <button
