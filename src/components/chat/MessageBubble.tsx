@@ -379,7 +379,12 @@ export function MessageBubble({
               </div>
             </div>
 
-            {text && <MarkdownMessage text={adaptedText} />}
+            {text && (
+              <MarkdownMessage
+                text={adaptedText}
+                streaming={status === "pending"}
+              />
+            )}
 
             {attachments && attachments.length > 0 && (
               <div className="flex max-w-full gap-2 overflow-x-auto pb-1 scrollbar-thin overflow-y-hidden">
