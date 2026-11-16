@@ -10,10 +10,54 @@ export type LiveCallStatus =
   | "error"
   | "ended";
 
+export type TranscriptRole = "user" | "agent";
+
+export type TranscriptTurn = {
+  id: string;
+  role: TranscriptRole;
+  text: string;
+};
+
 type UseLiveCallOptions = {
   instructions?: string;
   voice?: string;
 };
+
+/**
+ * Live transcription APIs send either:
+ * - deltas: "При" + "вет" + "!"
+ * - cumulative snapshots: "При" → "Привет" → "Привет!"
+ * - occasional exact duplicates of the final phrase
+ * Blind prev+incoming causes "Привет!Привет!".
+ */
+function mergeTranscript(prev: string, incoming: string): string {
+  const next = incoming.trimStart();
+  if (!next) return prev;
+  if (!prev) return next.trim();
+  if (next === prev) return prev;
+  if (next.startsWith(prev)) return next;
+  if (prev.startsWith(next)) return prev;
+  if (prev.endsWith(next)) return prev;
+  // Real delta chunk
+  return `${prev}${next}`;
+}
+
+function appendOrUpdateTurn(
+  turns: TranscriptTurn[],
+  role: TranscriptRole,
+  incoming: string,
+): TranscriptTurn[] {
+  const last = turns[turns.length - 1];
+  if (last && last.role === role) {
+    const merged = mergeTranscript(last.text, incoming);
+    if (merged === last.text) return turns;
+    return [...turns.slice(0, -1), { ...last, text: merged }];
+  }
+  return [
+    ...turns,
+    { id: crypto.randomUUID(), role, text: mergeTranscript("", incoming) },
+  ];
+}
 
 function floatTo16BitPCM(float32: Float32Array): ArrayBuffer {
   const buffer = new ArrayBuffer(float32.length * 2);
@@ -41,8 +85,7 @@ function parsePcmRate(mimeType: string | null): number {
 export function useLiveCall(options: UseLiveCallOptions = {}) {
   const [status, setStatus] = useState<LiveCallStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [inputTranscript, setInputTranscript] = useState("");
-  const [outputTranscript, setOutputTranscript] = useState("");
+  const [turns, setTurns] = useState<TranscriptTurn[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -163,8 +206,7 @@ export function useLiveCall(options: UseLiveCallOptions = {}) {
     closeSocket(true);
 
     setError(null);
-    setInputTranscript("");
-    setOutputTranscript("");
+    setTurns([]);
     setStatus("connecting");
 
     try {
@@ -277,12 +319,12 @@ export function useLiveCall(options: UseLiveCallOptions = {}) {
                 break;
               case "input_transcription":
                 if (msg.text) {
-                  setInputTranscript((prev) => `${prev}${msg.text}`.trim());
+                  setTurns((prev) => appendOrUpdateTurn(prev, "user", msg.text!));
                 }
                 break;
               case "output_transcription":
                 if (msg.text) {
-                  setOutputTranscript((prev) => `${prev}${msg.text}`.trim());
+                  setTurns((prev) => appendOrUpdateTurn(prev, "agent", msg.text!));
                 }
                 break;
               case "interrupted":
@@ -366,8 +408,7 @@ export function useLiveCall(options: UseLiveCallOptions = {}) {
   return {
     status,
     error,
-    inputTranscript,
-    outputTranscript,
+    turns,
     start,
     stop,
   };

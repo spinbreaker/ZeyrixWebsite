@@ -13,10 +13,9 @@ type LiveCallOverlayProps = {
 
 export function LiveCallOverlay({ open, onClose }: LiveCallOverlayProps) {
   const t = useTranslations("liveCall");
-  const { status, error, inputTranscript, outputTranscript, start, stop } =
-    useLiveCall();
+  const { status, error, turns, start, stop } = useLiveCall();
+  const listRef = useRef<HTMLDivElement>(null);
 
-  // Avoid double start/stop from React Strict Mode in the same "open" session
   const startedForOpenRef = useRef(false);
 
   useEffect(() => {
@@ -29,11 +28,16 @@ export function LiveCallOverlay({ open, onClose }: LiveCallOverlayProps) {
     void start();
   }, [open, start]);
 
-  // Only stop when the overlay is actually dismissed, not on Strict Mode re-run
   useEffect(() => {
     if (open) return;
     stop();
   }, [open, stop]);
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [turns]);
 
   if (!open) return null;
 
@@ -55,8 +59,8 @@ export function LiveCallOverlay({ open, onClose }: LiveCallOverlayProps) {
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-      <div className="w-full max-w-md rounded-3xl border border-border bg-surface shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+      <div className="w-full max-w-md rounded-3xl border border-border bg-surface shadow-2xl overflow-hidden flex flex-col max-h-[min(90dvh,640px)]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="size-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
               <WaveformIcon className="size-5 text-primary" />
@@ -78,45 +82,59 @@ export function LiveCallOverlay({ open, onClose }: LiveCallOverlayProps) {
           </button>
         </div>
 
-        <div className="px-5 py-8 flex flex-col items-center gap-6">
+        <div className="px-5 py-6 flex flex-col items-center gap-5 min-h-0 flex-1">
           <div
             className={`
-              size-28 rounded-full flex items-center justify-center
+              size-20 rounded-full flex items-center justify-center shrink-0
               border border-border
               ${status === "live" ? "bg-primary/10 animate-pulse" : "bg-elevated"}
             `}
           >
             <WaveformIcon
-              className={`size-12 ${status === "live" ? "text-primary" : "text-foreground-muted"}`}
+              className={`size-9 ${status === "live" ? "text-primary" : "text-foreground-muted"}`}
             />
           </div>
 
-          <div className="w-full space-y-3 min-h-24">
-            {inputTranscript && (
-              <div className="rounded-xl bg-elevated px-3 py-2">
-                <p className="text-caption text-foreground-muted mb-1">
-                  {t("you")}
+          <div
+            ref={listRef}
+            className="w-full flex-1 min-h-0 overflow-y-auto space-y-2 pr-1"
+          >
+            {turns.map((turn) => (
+              <div
+                key={turn.id}
+                className={`
+                  rounded-xl px-3 py-2
+                  ${turn.role === "user" ? "bg-elevated" : "bg-primary/10"}
+                `}
+              >
+                <p
+                  className={`
+                    text-caption mb-1
+                    ${turn.role === "user" ? "text-foreground-muted" : "text-primary"}
+                  `}
+                >
+                  {turn.role === "user" ? t("you") : t("agent")}
                 </p>
-                <p className="text-body-sm text-foreground-secondary">
-                  {inputTranscript}
+                <p
+                  className={`
+                    text-body-sm whitespace-pre-wrap
+                    ${turn.role === "user" ? "text-foreground-secondary" : "text-foreground"}
+                  `}
+                >
+                  {turn.text}
                 </p>
               </div>
-            )}
-            {outputTranscript && (
-              <div className="rounded-xl bg-primary/10 px-3 py-2">
-                <p className="text-caption text-primary mb-1">{t("agent")}</p>
-                <p className="text-body-sm text-foreground">{outputTranscript}</p>
-              </div>
-            )}
-            {!inputTranscript && !outputTranscript && status === "live" && (
-              <p className="text-center text-body-sm text-foreground-muted">
+            ))}
+
+            {turns.length === 0 && status === "live" && (
+              <p className="text-center text-body-sm text-foreground-muted py-4">
                 {t("listening")}
               </p>
             )}
             {error && (
               <p className="text-center text-body-sm text-error">{error}</p>
             )}
-            {status === "ended" && !error && (
+            {status === "ended" && !error && turns.length === 0 && (
               <p className="text-center text-body-sm text-foreground-muted">
                 {t("ended")}
               </p>
@@ -124,7 +142,7 @@ export function LiveCallOverlay({ open, onClose }: LiveCallOverlayProps) {
           </div>
         </div>
 
-        <div className="px-5 pb-6 flex justify-center gap-3">
+        <div className="px-5 pb-6 flex justify-center gap-3 shrink-0">
           {status === "ended" || status === "error" ? (
             <>
               <button
