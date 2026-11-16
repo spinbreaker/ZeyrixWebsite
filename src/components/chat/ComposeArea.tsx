@@ -22,6 +22,7 @@ import { useTranslations } from "next-intl";
 import { useChatDraft } from "@/src/hooks/useChatDraftStore";
 import { AccessInfoModalStatus, AccessInfoModal } from "../modals/accessInfo";
 import { notifyChatRouteChanged } from "@/src/hooks/useChatRoute";
+import { LiveCallOverlay } from "./LiveCallOverlay";
 
 type ComposeAreaProps = {
   chatId?: string;
@@ -70,6 +71,7 @@ export function ComposeArea({
     state === "ready" && !failedToLoad && access === "granted" && !creatingChat;
   const pathname = usePathname();
   const [composeError, setComposeError] = useState<"chat-not-created" | "forbidden" | null>(null);
+  const [liveCallOpen, setLiveCallOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
@@ -393,12 +395,19 @@ export function ComposeArea({
                   </button>
                 ) : !sending && !creatingChat && !canSend ? (
                   <button
-                    disabled={canSend}
+                    type="button"
+                    disabled={!canInteract || access !== "granted"}
                     className={`
                       size-8 rounded-lg flex items-center justify-center
                       transition-all duration-200
-                      ${!canSend ? "bg-primary cursor-pointer hover:bg-primary-hover transition-colors" : "bg-primary/50"}
+                      ${canInteract && access === "granted" ? "bg-primary cursor-pointer hover:bg-primary-hover transition-colors" : "bg-primary/50"}
                     `}
+                    onClick={() => {
+                      if (canInteract && access === "granted") {
+                        setLiveCallOpen(true);
+                      }
+                    }}
+                    aria-label="Live voice call"
                   >
                     <WaveformIcon className="size-5 text-primary-surface" />
                   </button>
@@ -459,6 +468,11 @@ export function ComposeArea({
         <p className="sm:hidden">{t("warningCaptionCompact")}</p>
         <p className="hidden sm:inline">{t("warningCaption")}</p>
       </div>
+
+      <LiveCallOverlay
+        open={liveCallOpen}
+        onClose={() => setLiveCallOpen(false)}
+      />
     </div>
   );
 }
