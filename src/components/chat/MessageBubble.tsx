@@ -17,6 +17,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { format } from "date-fns";
 import { getDateFnsLocale } from "@/src/lib/date-fns-locale";
 import { MarkdownMessage } from "./MarkdownMessage";
+import { AssistantContent, stripFileTags } from "./AssistantContent";
 import { CopyButton } from "./Buttons";
 import { Step } from "./AgentStep";
 import { ApprovalCard } from "./ApprovalCard";
@@ -379,24 +380,17 @@ export function MessageBubble({
               </div>
             </div>
 
-            {text && (
-              <MarkdownMessage
+            {(text || (attachments && attachments.length > 0)) && (
+              <AssistantContent
                 text={adaptedText}
+                attachments={attachments}
                 streaming={status === "pending"}
               />
             )}
 
-            {attachments && attachments.length > 0 && (
-              <div className="flex max-w-full gap-2 overflow-x-auto pb-1 scrollbar-thin overflow-y-hidden">
-                {attachments.map((attachment) => (
-                  <MessageAttachment key={attachment.fileId} {...attachment} />
-                ))}
-              </div>
-            )}
-
             {status === "completed" && (
               <div className="flex flex-row items-center">
-                <CopyButton content={adaptedText} />
+                <CopyButton content={stripFileTags(adaptedText)} />
                 <button className="p-2 rounded-lg hover:bg-elevated hover:cursor-pointer">
                   <LikeIcon className="text-foreground size-4" />
                 </button>
