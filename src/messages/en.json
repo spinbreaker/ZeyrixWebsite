@@ -729,5 +729,22 @@
     "agent": "Zeyrix",
     "listening": "Listening — speak now",
     "reconnect": "Reconnect"
+  },
+  "liveSession": {
+    "title": "Voice call",
+    "transcript": "Transcript",
+    "internalConversation": "Agent work during the call",
+    "you": "You",
+    "agent": "Mira",
+    "liveAgent": "Mira",
+    "mainAgent": "ZeyrixAI",
+    "turns": "{count} turns",
+    "status": {
+      "active": "In progress",
+      "ended": "Ended",
+      "error": "Error",
+      "interrupted": "Interrupted",
+      "cancelled": "Cancelled"
+    }
   }
 }

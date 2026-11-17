@@ -729,5 +729,22 @@
     "agent": "Zeyrix",
     "listening": "Слушаю — говорите",
     "reconnect": "Переподключить"
+  },
+  "liveSession": {
+    "title": "Голосовой звонок",
+    "transcript": "Транскрипт",
+    "internalConversation": "Работа агента во время звонка",
+    "you": "Вы",
+    "agent": "Мира",
+    "liveAgent": "Мира",
+    "mainAgent": "ZeyrixAI",
+    "turns": "{count} реплик",
+    "status": {
+      "active": "Идёт",
+      "ended": "Завершён",
+      "error": "Ошибка",
+      "interrupted": "Прерван",
+      "cancelled": "Отменён"
+    }
   }
 }

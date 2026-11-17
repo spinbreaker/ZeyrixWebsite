@@ -729,5 +729,22 @@
     "agent": "Zeyrix",
     "listening": "Тыңдап тұрмын — сөйлеңіз",
     "reconnect": "Қайта қосу"
+  },
+  "liveSession": {
+    "title": "Дауыстық қоңырау",
+    "transcript": "Транскрипт",
+    "internalConversation": "Қоңырау кезіндегі агент жұмысы",
+    "you": "Сіз",
+    "agent": "Мира",
+    "liveAgent": "Мира",
+    "mainAgent": "ZeyrixAI",
+    "turns": "{count} реплика",
+    "status": {
+      "active": "Жүріп жатыр",
+      "ended": "Аяқталды",
+      "error": "Қате",
+      "interrupted": "Үзілді",
+      "cancelled": "Болдырылмады"
+    }
   }
 }
