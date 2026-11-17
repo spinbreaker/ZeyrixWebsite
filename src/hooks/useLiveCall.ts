@@ -87,6 +87,8 @@ export function useLiveCall(options: UseLiveCallOptions = {}) {
   const [status, setStatus] = useState<LiveCallStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [turns, setTurns] = useState<TranscriptTurn[]>([]);
+  const [muted, setMutedState] = useState(false);
+  const mutedRef = useRef(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -208,6 +210,8 @@ export function useLiveCall(options: UseLiveCallOptions = {}) {
 
     setError(null);
     setTurns([]);
+    mutedRef.current = false;
+    setMutedState(false);
     setStatus("connecting");
 
     try {
@@ -290,6 +294,7 @@ export function useLiveCall(options: UseLiveCallOptions = {}) {
 
       processor.onaudioprocess = (event) => {
         if (generation !== generationRef.current) return;
+        if (mutedRef.current) return; // mic muted — do not send PCM
         const wsNow = wsRef.current;
         if (!wsNow || wsNow.readyState !== WebSocket.OPEN) return;
         try {
@@ -389,9 +394,20 @@ export function useLiveCall(options: UseLiveCallOptions = {}) {
     tearDownMedia,
   ]);
 
+  const setMuted = useCallback((value: boolean) => {
+    mutedRef.current = value;
+    setMutedState(value);
+    // Also gate the track so OS/browser indicator matches UX
+    mediaStreamRef.current?.getAudioTracks().forEach((track) => {
+      track.enabled = !value;
+    });
+  }, []);
+
   const stop = useCallback(() => {
     intentionalCloseRef.current = true;
     generationRef.current += 1; // invalidate in-flight start
+    mutedRef.current = false;
+    setMutedState(false);
     tearDownMedia();
     closeSocket(true);
     setStatus("ended");
@@ -410,6 +426,8 @@ export function useLiveCall(options: UseLiveCallOptions = {}) {
     status,
     error,
     turns,
+    muted,
+    setMuted,
     start,
     stop,
   };
