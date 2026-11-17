@@ -423,7 +423,17 @@ export async function subscribeToChatTask(
     });
     if (res.ok) {
       const data = await res.json();
-      initialMessages = (Array.isArray(data) ? data : []).map(normalizeMessage);
+      const list = Array.isArray(data) ? data : [];
+      // Only message objects participate in task execution / stream preload
+      initialMessages = list
+        .filter((item) => {
+          if (!item || typeof item !== "object") return false;
+          const kind = String(
+            (item as { kind?: string }).kind ?? "message",
+          ).toLowerCase();
+          return kind !== "live_session";
+        })
+        .map((item) => normalizeMessage(item as Message));
     }
   } catch (err) {
     options.signal?.removeEventListener("abort", onExternalAbort);

@@ -8,6 +8,10 @@ import {
   AgentStep,
   GeneratedFile,
   ConversationKind,
+  LiveSessionObject,
+  LiveSessionStatus,
+  LiveSessionTranscription,
+  TimelineItem,
 } from "../types/chat";
 import { useLocale } from "next-intl";
 import { useConnection } from "../components/auth/ConnectionContext";
@@ -131,6 +135,7 @@ function normalizeMessage(message: Message & {
     [];
   return {
     ...message,
+    kind: "message",
     attachments: [
       ...(message.attachments ?? []).map((att) => {
         const normalized = normalizeAttachment(att);
@@ -146,6 +151,98 @@ function normalizeMessage(message: Message & {
   };
 }
 
+function normalizeLiveSession(raw: Record<string, unknown>): LiveSessionObject {
+  const conversationRaw = Array.isArray(raw.conversation) ? raw.conversation : [];
+  const transcriptionRaw = Array.isArray(raw.transcription)
+    ? raw.transcription
+    : Array.isArray((raw as { transcriptions?: unknown }).transcriptions)
+      ? ((raw as { transcriptions: unknown[] }).transcriptions)
+      : [];
+
+  const durationRaw =
+    raw.durationSeconds ??
+    raw.duration_seconds ??
+    (raw as { duration?: unknown }).duration ??
+    0;
+
+  const createdAt = String(
+    raw.createdAt ?? raw.created_at ?? new Date().toISOString(),
+  );
+
+  const statusRaw = String(raw.status ?? "ended").toLowerCase();
+  const status = (
+    ["active", "ended", "error", "interrupted", "cancelled"].includes(statusRaw)
+      ? statusRaw
+      : "ended"
+  ) as LiveSessionStatus;
+
+  return {
+    id: String(raw.id),
+    kind: "live_session",
+    status,
+    conversation: conversationRaw.map((m) =>
+      normalizeMessage(m as Message & { generatedFiles?: GeneratedFile[] }),
+    ),
+    transcription: transcriptionRaw.map((t): LiveSessionTranscription => {
+      const row = t as Record<string, unknown>;
+      const role = String(row.role ?? "user").toLowerCase() === "agent"
+        ? "agent"
+        : "user";
+      return { role, text: String(row.text ?? "") };
+    }),
+    durationSeconds:
+      typeof durationRaw === "number"
+        ? durationRaw
+        : Number.parseFloat(String(durationRaw)) || 0,
+    createdAt,
+  };
+}
+
+/** Parse ConversationObjectUnion list from GET .../objects */
+export function normalizeConversationObjects(data: unknown): {
+  messages: Message[];
+  liveSessions: LiveSessionObject[];
+  timeline: TimelineItem[];
+} {
+  const list = Array.isArray(data) ? data : [];
+  const messages: Message[] = [];
+  const liveSessions: LiveSessionObject[] = [];
+  const timeline: TimelineItem[] = [];
+
+  for (const item of list) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const kind = String(row.kind ?? "message").toLowerCase();
+
+    if (kind === "live_session") {
+      const session = normalizeLiveSession(row);
+      liveSessions.push(session);
+      timeline.push(session);
+    } else {
+      const msg = normalizeMessage(row as Message & { generatedFiles?: GeneratedFile[] });
+      messages.push(msg);
+      timeline.push(msg);
+    }
+  }
+
+  return { messages, liveSessions, timeline };
+}
+
+function mergeTimeline(
+  liveSessions: LiveSessionObject[],
+  messages: Message[],
+): TimelineItem[] {
+  const items: TimelineItem[] = [
+    ...liveSessions,
+    ...messages.map((m) => ({ ...m, kind: "message" as const })),
+  ];
+  items.sort(
+    (a, b) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+  return items;
+}
+
 export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalStatus | null>>, chatId?: string, kind: ConversationKind = "chat") {
   const [messages, setMessages] = useState<Message[]>(() => {
     if (chatId) {
@@ -154,6 +251,7 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
     }
     return getOptimisticMessages(chatId);
   });
+  const [liveSessions, setLiveSessions] = useState<LiveSessionObject[]>([]);
   const [loading, setLoading] = useState(() => {
     if (!chatId) return false;
     return !isChatStreaming(chatId);
@@ -163,6 +261,8 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
   const [shouldMessagesLoad, setShouldMessagesLoad] = useState(false);
+
+  const timeline = mergeTimeline(liveSessions, messages);
 
   const locale = useLocale();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -204,9 +304,12 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
 
     if (!chatId) {
       setMessages([]);
+      setLiveSessions([]);
       setLoading(false);
       return;
     }
+
+    setLiveSessions([]);
 
     const live = getStreamMessages(chatId);
     if (live) {
@@ -261,9 +364,13 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
         );
 
         if (!res.ok) throw new Error(`Backend вернул ${res.status}`);
-        const data: Message[] = (await res.json()).map(normalizeMessage);
+        const raw = await res.json();
+        const { messages: data, liveSessions: sessions } =
+          normalizeConversationObjects(raw);
 
         if (!cancelled) {
+          setLiveSessions(sessions);
+
           if (isChatStreaming(chatId)) {
             const live = getStreamMessages(chatId);
             if (live) setMessages(live);
@@ -271,7 +378,7 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
             return;
           }
 
-          if (data.length > 0) {
+          if (data.length > 0 || sessions.length > 0) {
             clearOptimisticMessages(chatId);
             // Не затираем более «живой» snapshot стрима устаревшим pending с API
             const hasPendingOnly =
@@ -833,5 +940,17 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
     );
   }, [chatId, kind]);
 
-  return { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage, stopGeneration, setShouldMessagesLoad };
+  return {
+    messages,
+    timeline,
+    liveSessions,
+    loading,
+    error,
+    sending,
+    sendMessage,
+    applyToolUse,
+    retrySendMessage,
+    stopGeneration,
+    setShouldMessagesLoad,
+  };
 }

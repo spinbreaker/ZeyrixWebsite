@@ -19,7 +19,8 @@ export type TranscriptTurn = {
 };
 
 type UseLiveCallOptions = {
-  instructions?: string;
+  /** Required by backend — live is only for existing chats */
+  chatId?: string;
   voice?: string;
 };
 
@@ -224,13 +225,14 @@ export function useLiveCall(options: UseLiveCallOptions = {}) {
       }
       mediaStreamRef.current = stream;
 
-      const params = new URLSearchParams();
-      if (options.instructions) {
-        params.set("instructions", options.instructions);
+      if (!options.chatId) {
+        throw new Error("Live call requires an existing chat");
       }
+
+      const params = new URLSearchParams();
+      params.set("chatId", options.chatId);
       if (options.voice) params.set("voice", options.voice);
-      const qs = params.toString();
-      const url = `${wsUrl("/ai/zeyrix/live")}${qs ? `?${qs}` : ""}`;
+      const url = `${wsUrl("/ai/zeyrix/live")}?${params.toString()}`;
 
       const ws = new WebSocket(url);
       ws.binaryType = "arraybuffer";
@@ -382,7 +384,6 @@ export function useLiveCall(options: UseLiveCallOptions = {}) {
   }, [
     cleanup,
     closeSocket,
-    options.instructions,
     options.voice,
     playPcmChunk,
     tearDownMedia,
