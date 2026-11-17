@@ -728,7 +728,16 @@
     "you": "You",
     "agent": "Zeyrix",
     "listening": "Listening — speak now",
-    "reconnect": "Reconnect"
+    "reconnect": "Reconnect",
+    "ready": "Ready to call",
+    "call": "Call",
+    "close": "Close",
+    "mute": "Mute microphone",
+    "unmute": "Unmute microphone",
+    "mutedHint": "Microphone muted",
+    "tapToCall": "Tap the green button to start the call",
+    "endedHint": "Call ended — tap the yellow button to call again",
+    "needChat": "Open a chat before starting a voice call"
   },
   "liveSession": {
     "title": "Voice call",
