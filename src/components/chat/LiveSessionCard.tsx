@@ -115,7 +115,7 @@ export function LiveSessionCard({
         </button>
 
         {expanded && hasDetails && (
-          <div className="border-t border-border px-4 py-3 flex flex-col gap-4">
+          <div className="border-t border-border px-4 py-3 flex flex-col">
             {session.transcription.length > 0 && (
               <div className="flex flex-col gap-2">
                 <p className="text-caption font-medium text-foreground-secondary">
@@ -139,7 +139,7 @@ export function LiveSessionCard({
                           <p className="text-caption opacity-70 mb-0.5">
                             {isUser ? t("you") : t("agent")}
                           </p>
-                          <p className="whitespace-pre-wrap break-words">
+                          <p className="whitespace-pre-wrap wrap-break-word">
                             {turn.text}
                           </p>
                         </div>
@@ -151,7 +151,7 @@ export function LiveSessionCard({
             )}
 
             {session.conversation.length > 0 && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 border-t border-border pt-2">
                 <p className="text-caption font-medium text-foreground-secondary">
                   {t("internalConversation")}
                 </p>
