@@ -705,6 +705,7 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
       };
 
       let receivedStreamEvent = false;
+      let receivedTerminalEvent = false; // done / terminal error — do not resubscribe
       let handoffToBackendTask = false;
 
       try {
@@ -720,6 +721,9 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
             },
             (event) => {
               receivedStreamEvent = true;
+              if (event.type === "done" || event.type === "error") {
+                receivedTerminalEvent = true;
+              }
               handleStreamEvent(event, updateLastAssistantMessage);
             },
             userAbort.signal,
@@ -745,12 +749,21 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
             setModalState(apiError.detail ?? null);
           }
 
-          if (
-            receivedStreamEvent ||
-            apiError.code === "STREAM_ERROR"
-          ) {
-            handoffToBackendTask = true;
-            return;
+          // Only hand off if the assistant is still pending locally.
+          // Stream close after a successful run often throws STREAM_ERROR even
+          // when `done` was applied — never resubscribe in that case.
+          {
+            const live = getStreamMessages(targetChatId);
+            const lastAsst = live?.findLast((m) => m.role === "assistant");
+            const stillPending = lastAsst?.status === "pending";
+            if (
+              stillPending &&
+              !receivedTerminalEvent &&
+              (receivedStreamEvent || apiError.code === "STREAM_ERROR")
+            ) {
+              handoffToBackendTask = true;
+              return;
+            }
           }
 
           updateChatStreamMessages(targetChatId, (prev) => {
@@ -787,8 +800,19 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
         }
         endChatStream(targetChatId);
 
-        if (handoffToBackendTask) {
-          // Переподписка на ту же task через новый API
+        const lastAssistant = finalMessages?.findLast(
+          (m) => m.role === "assistant",
+        );
+        // Terminal statuses mean the run finished (or paused on approval).
+        // Force isTaskRunning=false so we never resubscribe to a finished task.
+        const finishedLocally =
+          lastAssistant != null &&
+          (lastAssistant.status === "completed" ||
+            lastAssistant.status === "approval_required" ||
+            lastAssistant.status === "error" ||
+            lastAssistant.status === "cancelled");
+
+        if (handoffToBackendTask && !finishedLocally && !receivedTerminalEvent) {
           notifyTaskRunning(targetChatId, true);
           void import("../lib/chatTaskStream").then(({ subscribeToChatTask }) =>
             subscribeToChatTask(targetChatId, "chat", {
@@ -796,6 +820,8 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
             }),
           );
         } else {
+          // Clear isTaskRunning so load/visibility won't call
+          // subscribe_to_task for an already-finished generation.
           notifyTaskRunning(targetChatId, false);
         }
       }
@@ -863,61 +889,90 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
         });
       };
 
+      let receivedStreamEvent = false;
+      let receivedTerminalEvent = false;
+      let handoffToBackendTask = false;
+
       try {
-        await streamAI(
-          `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/ai/apply_tool`,
-          {
-            requestId: requestId,
-            action: action,
-            locale: locale,
-            timezone: timezone,
-          },
-          (event) => handleStreamEvent(event, updateApproveRequiredMessage),
-          userAbort.signal,
-        );
-      } catch (err) {
-        if (isAbortError(err) && userAbort.signal.aborted) {
-          updateChatStreamMessages(targetChatId, (prev) =>
-            prev.map((message, index) => {
-              if (index === prev.findLastIndex((m) => m.role === "assistant")) {
-                return { ...message, status: "cancelled" };
+        try {
+          await streamAI(
+            `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/ai/apply_tool`,
+            {
+              requestId: requestId,
+              action: action,
+              locale: locale,
+              timezone: timezone,
+            },
+            (event) => {
+              receivedStreamEvent = true;
+              if (event.type === "done" || event.type === "error") {
+                receivedTerminalEvent = true;
               }
-              return message;
-            }),
+              handleStreamEvent(event, updateApproveRequiredMessage);
+            },
+            userAbort.signal,
           );
-          return;
-        }
-
-        const apiError = parseApiError(err);
-
-        if (apiError.code === "INVITE_REQUIRED") {
-          setModalState(apiError.detail ?? null);
-        }
-
-        const fallbackText =
-          apiError.code === "NETWORK_ERROR" || apiError.code === "STREAM_ERROR"
-            ? apiError.message
-            : apiError.message ||
-              `Failed to handle the request.\nTry again in a moment.\nIf this problem will repeat, please, inform us.`;
-
-        updateChatStreamMessages(targetChatId, (prev) => {
-          const index = prev.findLastIndex(
-            (message) => message.role === "assistant",
-          );
-          if (index === -1) return prev;
-
-          return prev.map((message, i) =>
-            i === index
-              ? {
-                  ...message,
-                  status: "error",
-                  text: fallbackText,
+        } catch (err) {
+          if (isAbortError(err) && userAbort.signal.aborted) {
+            updateChatStreamMessages(targetChatId, (prev) =>
+              prev.map((message, index) => {
+                if (
+                  index === prev.findLastIndex((m) => m.role === "assistant")
+                ) {
+                  return { ...message, status: "cancelled" };
                 }
-              : message,
-          );
-        });
+                return message;
+              }),
+            );
+            return;
+          }
 
-        setError(fallbackText);
+          const apiError = parseApiError(err);
+
+          if (apiError.code === "INVITE_REQUIRED") {
+            setModalState(apiError.detail ?? null);
+          }
+
+          {
+            const live = getStreamMessages(targetChatId);
+            const lastAsst = live?.findLast((m) => m.role === "assistant");
+            const stillPending = lastAsst?.status === "pending";
+            if (
+              stillPending &&
+              !receivedTerminalEvent &&
+              (receivedStreamEvent || apiError.code === "STREAM_ERROR")
+            ) {
+              handoffToBackendTask = true;
+              return;
+            }
+          }
+
+          const fallbackText =
+            apiError.code === "NETWORK_ERROR" ||
+            apiError.code === "STREAM_ERROR"
+              ? apiError.message
+              : apiError.message ||
+                `Failed to handle the request.\nTry again in a moment.\nIf this problem will repeat, please, inform us.`;
+
+          updateChatStreamMessages(targetChatId, (prev) => {
+            const index = prev.findLastIndex(
+              (message) => message.role === "assistant",
+            );
+            if (index === -1) return prev;
+
+            return prev.map((message, i) =>
+              i === index
+                ? {
+                    ...message,
+                    status: "error",
+                    text: fallbackText,
+                  }
+                : message,
+            );
+          });
+
+          setError(fallbackText);
+        }
       } finally {
         const finalMessages = getStreamMessages(targetChatId);
         if (finalMessages) {
@@ -927,7 +982,28 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
           }
         }
         endChatStream(targetChatId);
-        notifyTaskRunning(targetChatId, false);
+
+        const lastAssistant = finalMessages?.findLast(
+          (m) => m.role === "assistant",
+        );
+        const finishedLocally =
+          lastAssistant != null &&
+          (lastAssistant.status === "completed" ||
+            lastAssistant.status === "approval_required" ||
+            lastAssistant.status === "error" ||
+            lastAssistant.status === "cancelled");
+
+        if (handoffToBackendTask && !finishedLocally && !receivedTerminalEvent) {
+          notifyTaskRunning(targetChatId, true);
+          void import("../lib/chatTaskStream").then(({ subscribeToChatTask }) =>
+            subscribeToChatTask(targetChatId, "chat", {
+              onEnded: (id) => notifyTaskRunning(id, false),
+            }),
+          );
+        } else {
+          // Same as sendMessage: clear isTaskRunning
+          notifyTaskRunning(targetChatId, false);
+        }
       }
     },
     [locale, timezone, setModalState],
