@@ -393,7 +393,7 @@ export function ComposeArea({
                   >
                     <SendIcon className="size-3 text-primary-surface" />
                   </button>
-                ) : !sending && !creatingChat && !canSend ? (
+                ) : !sending && !creatingChat && !canSend && chatId && !isNewChat ? (
                   <button
                     type="button"
                     disabled={!canInteract || access !== "granted"}
@@ -403,7 +403,7 @@ export function ComposeArea({
                       ${canInteract && access === "granted" ? "bg-primary cursor-pointer hover:bg-primary-hover transition-colors" : "bg-primary/50"}
                     `}
                     onClick={() => {
-                      if (canInteract && access === "granted") {
+                      if (canInteract && access === "granted" && chatId) {
                         setLiveCallOpen(true);
                       }
                     }}
@@ -420,19 +420,16 @@ export function ComposeArea({
                   >
                     <span className="size-4 animate-spin rounded-full border-2 border-primary-surface/40 border-t-primary-surface" />
                   </button>
-                ) : (
+                ) : sending ? (
                   <button
-                    disabled={!sending}
-                    className={`
-                      size-8 rounded-lg flex items-center justify-center
-                      transition-all duration-200
-                      ${sending ? "bg-primary cursor-pointer hover:bg-primary-hover transition-colors" : "bg-primary/50"}
-                    `}
+                    type="button"
+                    className="size-8 rounded-lg flex items-center justify-center bg-primary cursor-pointer hover:bg-primary-hover transition-colors"
                     onClick={stopGeneration}
+                    aria-label="Stop generation"
                   >
                     <StopIcon className="size-4 text-primary-surface" />
                   </button>
-                )}
+                ) : null}
               </>
             )}
           </div>
@@ -469,10 +466,13 @@ export function ComposeArea({
         <p className="hidden sm:inline">{t("warningCaption")}</p>
       </div>
 
-      <LiveCallOverlay
-        open={liveCallOpen}
-        onClose={() => setLiveCallOpen(false)}
-      />
+      {chatId && !isNewChat && (
+        <LiveCallOverlay
+          open={liveCallOpen}
+          onClose={() => setLiveCallOpen(false)}
+          chatId={chatId}
+        />
+      )}
     </div>
   );
 }

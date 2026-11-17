@@ -9,11 +9,13 @@ import CloseIcon from "@/src/icons/close.svg";
 type LiveCallOverlayProps = {
   open: boolean;
   onClose: () => void;
+  /** Existing chat only — required for WS query param chatId */
+  chatId?: string;
 };
 
-export function LiveCallOverlay({ open, onClose }: LiveCallOverlayProps) {
+export function LiveCallOverlay({ open, onClose, chatId }: LiveCallOverlayProps) {
   const t = useTranslations("liveCall");
-  const { status, error, turns, start, stop } = useLiveCall();
+  const { status, error, turns, start, stop } = useLiveCall({ chatId });
   const listRef = useRef<HTMLDivElement>(null);
 
   const startedForOpenRef = useRef(false);
@@ -23,10 +25,11 @@ export function LiveCallOverlay({ open, onClose }: LiveCallOverlayProps) {
       startedForOpenRef.current = false;
       return;
     }
+    if (!chatId) return;
     if (startedForOpenRef.current) return;
     startedForOpenRef.current = true;
     void start();
-  }, [open, start]);
+  }, [open, start, chatId]);
 
   useEffect(() => {
     if (open) return;
