@@ -1,21 +1,38 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, Dispatch, SetStateAction } from "react";
-import { flushSync } from "react-dom";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, Dispatch, SetStateAction, useSyncExternalStore } from "react";
 import {
   Message,
   Attachment,
   StreamEvent,
   AgentStep,
   GeneratedFile,
+  ConversationKind,
+  LiveSessionObject,
+  LiveSessionStatus,
+  LiveSessionTranscription,
+  TimelineItem,
 } from "../types/chat";
 import { useLocale } from "next-intl";
 import { useConnection } from "../components/auth/ConnectionContext";
 import { apiFetch } from "../lib/api";
 import { AccessInfoModalStatus } from "../components/modals/accessInfo";
-import { cacheFile } from "../lib/FileCache";
+import { cacheGeneratedFileIds } from "../lib/FileCache";
+import {
+  abortChatStream,
+  endChatStream,
+  clearLastStreamSnapshot,
+  getLastStreamSnapshot,
+  getStreamMessages,
+  isChatStreaming,
+  notifyTaskRunning,
+  startChatStream,
+  subscribeChatStreams,
+  updateChatStreamMessages,
+} from "./chatStreamStore";
 
 const optimisticMessagesByChatId = new Map<string, Message[]>();
+const CONNECT_TIMEOUT_MS = 30_000;
 
 function getOptimisticMessages(chatId?: string) {
   if (!chatId) return [];
@@ -33,12 +50,65 @@ function clearOptimisticMessages(chatId?: string) {
   optimisticMessagesByChatId.delete(chatId);
 }
 
+function isAbortError(err: unknown): boolean {
+  return (
+    (err instanceof DOMException && err.name === "AbortError") ||
+    (err instanceof Error && err.name === "AbortError")
+  );
+}
+
+const CONNECT_TIMEOUT_REASON = "connect-timeout";
+
+function isConnectTimeoutError(err: unknown): boolean {
+  if (!isAbortError(err)) return false;
+  const reason =
+    err instanceof DOMException
+      ? err.message
+      : err instanceof Error
+        ? err.message
+        : "";
+  return reason === CONNECT_TIMEOUT_REASON || reason.includes("connect-timeout");
+}
+
+function parseApiError(err: unknown): {
+  code?: string;
+  message: string;
+  detail?: AccessInfoModalStatus;
+} {
+  if (!(err instanceof Error)) {
+    return { message: "Unknown error" };
+  }
+
+  if (isConnectTimeoutError(err)) {
+    return {
+      code: "NETWORK_ERROR",
+      message: "Connection timed out. Check your network and try again.",
+    };
+  }
+
+  try {
+    const data = JSON.parse(err.message) as {
+      code?: string;
+      message?: string;
+      detail?: AccessInfoModalStatus;
+    };
+    return {
+      code: data.code,
+      message: data.message ?? err.message,
+      detail: data.detail,
+    };
+  } catch {
+    return { code: "NETWORK_ERROR", message: err.message };
+  }
+}
+
 function generatedFileToAttachment(file: GeneratedFile): Attachment {
   return {
     fileId: file.id,
     filename: file.filename,
     mimeType: file.mimeType,
     size: file.sizeBytes,
+    generated: true,
   };
 }
 
@@ -54,69 +124,278 @@ function normalizeAttachment(attachment: Attachment & { sizeBytes?: number }) {
 function normalizeMessage(message: Message & {
   generatedFiles?: GeneratedFile[];
   generatedImages?: GeneratedFile[];
+  generated_files?: GeneratedFile[];
+  generated_images?: GeneratedFile[];
 }): Message {
-  const generatedFiles = message.generatedFiles ?? message.generatedImages ?? [];
+  const generatedFiles =
+    message.generatedFiles ??
+    message.generatedImages ??
+    message.generated_files ??
+    message.generated_images ??
+    [];
   return {
     ...message,
+    kind: "message",
     attachments: [
-      ...(message.attachments ?? []).map(normalizeAttachment),
+      ...(message.attachments ?? []).map((att) => {
+        const normalized = normalizeAttachment(att);
+        const isGenerated = Boolean(
+          att.generated ??
+            (att as { is_generated?: boolean }).is_generated ??
+            (att as { source?: string }).source === "generated",
+        );
+        return isGenerated ? { ...normalized, generated: true } : normalized;
+      }),
       ...generatedFiles.map(generatedFileToAttachment),
     ],
   };
 }
 
-export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalStatus | null>>, chatId?: string) {
-  const [messages, setMessages] = useState<Message[]>(() =>
-    getOptimisticMessages(chatId),
+function normalizeLiveSession(raw: Record<string, unknown>): LiveSessionObject {
+  const conversationRaw = Array.isArray(raw.conversation) ? raw.conversation : [];
+  const transcriptionRaw = Array.isArray(raw.transcription)
+    ? raw.transcription
+    : Array.isArray((raw as { transcriptions?: unknown }).transcriptions)
+      ? ((raw as { transcriptions: unknown[] }).transcriptions)
+      : [];
+
+  const durationRaw =
+    raw.durationSeconds ??
+    raw.duration_seconds ??
+    (raw as { duration?: unknown }).duration ??
+    0;
+
+  const createdAt = String(
+    raw.createdAt ?? raw.created_at ?? new Date().toISOString(),
   );
-  const [loading, setLoading] = useState(true);
+
+  const statusRaw = String(raw.status ?? "ended").toLowerCase();
+  const status = (
+    ["active", "ended", "error", "interrupted", "cancelled"].includes(statusRaw)
+      ? statusRaw
+      : "ended"
+  ) as LiveSessionStatus;
+
+  return {
+    id: String(raw.id),
+    kind: "live_session",
+    status,
+    conversation: conversationRaw.map((m) =>
+      normalizeMessage(m as Message & { generatedFiles?: GeneratedFile[] }),
+    ),
+    transcription: transcriptionRaw.map((t): LiveSessionTranscription => {
+      const row = t as Record<string, unknown>;
+      const role = String(row.role ?? "user").toLowerCase() === "agent"
+        ? "agent"
+        : "user";
+      return { role, text: String(row.text ?? "") };
+    }),
+    durationSeconds:
+      typeof durationRaw === "number"
+        ? durationRaw
+        : Number.parseFloat(String(durationRaw)) || 0,
+    createdAt,
+  };
+}
+
+/** Parse ConversationObjectUnion list from GET .../objects */
+export function normalizeConversationObjects(data: unknown): {
+  messages: Message[];
+  liveSessions: LiveSessionObject[];
+  timeline: TimelineItem[];
+} {
+  const list = Array.isArray(data) ? data : [];
+  const messages: Message[] = [];
+  const liveSessions: LiveSessionObject[] = [];
+  const timeline: TimelineItem[] = [];
+
+  for (const item of list) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const kind = String(row.kind ?? "message").toLowerCase();
+
+    if (kind === "live_session") {
+      const session = normalizeLiveSession(row);
+      liveSessions.push(session);
+      timeline.push(session);
+    } else {
+      const msg = normalizeMessage(row as Message & { generatedFiles?: GeneratedFile[] });
+      messages.push(msg);
+      timeline.push(msg);
+    }
+  }
+
+  return { messages, liveSessions, timeline };
+}
+
+function mergeTimeline(
+  liveSessions: LiveSessionObject[],
+  messages: Message[],
+): TimelineItem[] {
+  const items: TimelineItem[] = [
+    ...liveSessions,
+    ...messages.map((m) => ({ ...m, kind: "message" as const })),
+  ];
+  items.sort(
+    (a, b) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+  return items;
+}
+
+export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalStatus | null>>, chatId?: string, kind: ConversationKind = "chat") {
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (chatId) {
+      const live = getStreamMessages(chatId);
+      if (live) return live;
+    }
+    return getOptimisticMessages(chatId);
+  });
+  const [liveSessions, setLiveSessions] = useState<LiveSessionObject[]>([]);
+  const [loading, setLoading] = useState(() => {
+    if (!chatId) return false;
+    return !isChatStreaming(chatId);
+  });
   const [error, setError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
   const previousChatIdRef = useRef<string | undefined>(chatId);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
   const [shouldMessagesLoad, setShouldMessagesLoad] = useState(false);
+
+  const timeline = mergeTimeline(liveSessions, messages);
 
   const locale = useLocale();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const { state } = useConnection();
 
+  const sending = useSyncExternalStore(
+    subscribeChatStreams,
+    () => isChatStreaming(chatId),
+    () => false,
+  );
+
+  useEffect(() => {
+    if (!chatId) return;
+
+    return subscribeChatStreams(() => {
+      const live = getStreamMessages(chatId);
+      if (live) {
+        setMessages(live);
+        setLoading(false);
+        return;
+      }
+
+      const snapshot = getLastStreamSnapshot(chatId);
+      if (snapshot) {
+        setMessages(snapshot);
+        setLoading(false);
+        clearLastStreamSnapshot(chatId);
+      }
+    });
+  }, [chatId]);
+
+  useLayoutEffect(() => {
+    const previousChatId = previousChatIdRef.current;
+    if (previousChatId === chatId) return;
+
+    previousChatIdRef.current = chatId;
+    setError(null);
+
+    if (!chatId) {
+      setMessages([]);
+      setLiveSessions([]);
+      setLoading(false);
+      return;
+    }
+
+    setLiveSessions([]);
+
+    const live = getStreamMessages(chatId);
+    if (live) {
+      setMessages(live);
+      setLoading(false);
+      return;
+    }
+
+    const optimistic = getOptimisticMessages(chatId);
+    setMessages(optimistic);
+    setLoading(optimistic.length === 0);
+  }, [chatId]);
+
   useEffect(() => {
     let cancelled = false;
-    const previousChatId = previousChatIdRef.current;
-    previousChatIdRef.current = chatId;
 
     if (state !== "ready") {
       return;
     }
 
     async function loadMessages() {
-      setLoading(true);
-      setError(null);
-
-      if (previousChatId !== undefined && previousChatId !== chatId) {
-        setMessages(getOptimisticMessages(chatId));
-      }
-
       if (!chatId) {
         setMessages([]);
         setLoading(false);
         return;
       }
 
+      if (isChatStreaming(chatId)) {
+        const live = getStreamMessages(chatId);
+        if (live) setMessages(live);
+        setLoading(false);
+        return;
+      }
+
+      const snapshot = getLastStreamSnapshot(chatId);
+      if (snapshot) {
+        setMessages(snapshot);
+        setLoading(false);
+        clearLastStreamSnapshot(chatId);
+      }
+
+      setLoading(!snapshot);
+      setError(null);
+
       try {
-        const res = await apiFetch(`/api/chats/${chatId}/get_messages`, {
-          credentials: "include",
-        });
+        const objectsSegment = kind === "task" ? "tasks" : "chats";
+        const res = await apiFetch(
+          `/api/conversations/${objectsSegment}/${chatId}/objects`,
+          {
+            credentials: "include",
+          },
+        );
 
         if (!res.ok) throw new Error(`Backend вернул ${res.status}`);
-        const data: Message[] = (await res.json()).map(normalizeMessage);
+        const raw = await res.json();
+        const { messages: data, liveSessions: sessions } =
+          normalizeConversationObjects(raw);
 
         if (!cancelled) {
-          if (data.length > 0) {
+          setLiveSessions(sessions);
+
+          if (isChatStreaming(chatId)) {
+            const live = getStreamMessages(chatId);
+            if (live) setMessages(live);
+            setLoading(false);
+            return;
+          }
+
+          if (data.length > 0 || sessions.length > 0) {
             clearOptimisticMessages(chatId);
-            setMessages(data);
-          } else {
+            // Не затираем более «живой» snapshot стрима устаревшим pending с API
+            const hasPendingOnly =
+              data.some(
+                (m) => m.role === "assistant" && m.status === "pending",
+              ) &&
+              snapshot &&
+              snapshot.some(
+                (m) =>
+                  m.role === "assistant" &&
+                  m.status !== "pending" &&
+                  m.status !== "approval_required",
+              );
+            if (!hasPendingOnly) {
+              setMessages(data);
+            }
+          } else if (!snapshot) {
             setMessages(getOptimisticMessages(chatId));
           }
         }
@@ -139,7 +418,7 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
     return () => {
       cancelled = true;
     };
-  }, [chatId, state, shouldMessagesLoad]);
+  }, [chatId, kind, state, shouldMessagesLoad]);
 
   async function streamAI(
     url: string,
@@ -147,79 +426,127 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
     onEvent: (event: StreamEvent) => void,
     signal: AbortSignal,
   ) {
-    const response = await fetch(url, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal,
-    });
-    
-    if (!response.ok || !response.body) {
-      const error = await response.json();
-      throw new Error(JSON.stringify(error));
+    const fetchController = new AbortController();
+    let connectTimedOut = false;
+
+    const onParentAbort = () => {
+      fetchController.abort(signal.reason);
+    };
+    if (signal.aborted) {
+      onParentAbort();
+    } else {
+      signal.addEventListener("abort", onParentAbort);
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+    const connectTimer = setTimeout(() => {
+      connectTimedOut = true;
+      fetchController.abort(
+        new DOMException(CONNECT_TIMEOUT_REASON, "AbortError"),
+      );
+    }, CONNECT_TIMEOUT_MS);
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: fetchController.signal,
+      });
+      clearTimeout(connectTimer);
+    } catch (err) {
+      clearTimeout(connectTimer);
+      signal.removeEventListener("abort", onParentAbort);
+
+      if (connectTimedOut || isConnectTimeoutError(err)) {
+        throw new Error(
+          JSON.stringify({
+            code: "NETWORK_ERROR",
+            message: "Connection timed out. Check your network and try again.",
+          }),
+        );
+      }
+      if (isAbortError(err)) throw err;
+      throw new Error(
+        JSON.stringify({
+          code: "NETWORK_ERROR",
+          message:
+            err instanceof Error ? err.message : "Failed to reach the server",
+        }),
+      );
+    }
 
     try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          break;
+      if (!response.ok || !response.body) {
+        let payload: unknown;
+        try {
+          payload = await response.json();
+        } catch {
+          payload = {
+            code: "HTTP_ERROR",
+            message: `Request failed with status ${response.status}`,
+            status: response.status,
+          };
         }
+        throw new Error(
+          typeof payload === "string" ? payload : JSON.stringify(payload),
+        );
+      }
 
-        const chunk = decoder.decode(value, { stream: true });
-        buffer += chunk;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith("data:")) {
-            continue;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
           }
 
-          const data = trimmed.slice(5).trim();
-          if (!data || data === "[DONE]") {
-            continue;
-          }
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
 
-          const event: StreamEvent = JSON.parse(data);
-          onEvent(event);
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith("data:")) {
+              continue;
+            }
+
+            const data = trimmed.slice(5).trim();
+            if (!data || data === "[DONE]") {
+              continue;
+            }
+
+            const event: StreamEvent = JSON.parse(data);
+            onEvent(event);
+          }
         }
+      } catch (err) {
+        if (isAbortError(err)) throw err;
+        throw new Error(
+          JSON.stringify({
+            code: "STREAM_ERROR",
+            message:
+              err instanceof Error
+                ? err.message
+                : "Connection lost while streaming",
+          }),
+        );
+      } finally {
+        reader.releaseLock();
       }
     } finally {
-      reader.releaseLock();
+      signal.removeEventListener("abort", onParentAbort);
     }
   }
 
   async function cacheGeneratedFiles(files: GeneratedFile[]) {
-    await Promise.all(
-      files.map(async (file) => {
-        try {
-          const tokenResponse = await apiFetch(`/api/files/${file.accessToken}`, {
-            credentials: "include",
-          });
-          if (!tokenResponse.ok) {
-            throw new Error(`Token endpoint returned ${tokenResponse.status}`);
-          }
-
-          const { url }: { url: string } = await tokenResponse.json();
-          const fileResponse = await fetch(url);
-          if (!fileResponse.ok) {
-            throw new Error(`File download returned ${fileResponse.status}`);
-          }
-
-          await cacheFile(file.id, await fileResponse.blob());
-        } catch (error) {
-          console.error(`Failed to cache generated file ${file.id}`, error);
-        }
-      }),
-    );
+    await cacheGeneratedFileIds(files);
   }
 
   function handleStreamEvent(
@@ -318,9 +645,11 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
       newChatId?: string,
     ) => {
       const targetChatId = newChatId ?? chatId;
+      if (!targetChatId) return;
 
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
+      if (isChatStreaming(targetChatId)) return;
+
+      const userAbort = new AbortController();
 
       const optimisticUserMsg: Message = {
         id: crypto.randomUUID(),
@@ -341,38 +670,45 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
         applyToolUse: applyToolUse,
       };
 
-      if (newChatId) {
-        setOptimisticMessages(newChatId, [
-          ...(optimisticMessagesByChatId.get(newChatId) ?? []),
-          optimisticUserMsg,
-          optimisticAgentMessage,
-        ]);
-      }
+      const baseMessages =
+        targetChatId === chatId
+          ? messagesRef.current
+          : (getStreamMessages(targetChatId) ??
+            getOptimisticMessages(targetChatId));
 
-      setMessages((prev) => [
-        ...prev,
+      const nextMessages = [
+        ...baseMessages,
         optimisticUserMsg,
         optimisticAgentMessage,
-      ]);
-      setSending(true);
-      setError(null);
+      ];
+
+      setOptimisticMessages(targetChatId, nextMessages);
+      startChatStream(targetChatId, nextMessages, userAbort);
+      notifyTaskRunning(targetChatId, true);
+
+      if (targetChatId === chatId || !chatId) {
+        setMessages(nextMessages);
+        setLoading(false);
+        setError(null);
+      }
+
+      const updateLastAssistantMessage = (
+        updater: (message: Message) => Message,
+      ) => {
+        updateChatStreamMessages(targetChatId, (prev) => {
+          const index = prev.findLastIndex((m) => m.role === "assistant");
+          if (index === -1) return prev;
+          return prev.map((message, i) =>
+            i === index ? updater(message) : message,
+          );
+        });
+      };
+
+      let receivedStreamEvent = false;
+      let receivedTerminalEvent = false; // done / terminal error — do not resubscribe
+      let handoffToBackendTask = false;
 
       try {
-        const updateLastAssistantMessage = (updater: (message: Message) => Message) => {
-          flushSync(() => {
-            setMessages((prev) => {
-              const index = prev.findLastIndex((m) => m.role === "assistant");
-              if (index === -1) return prev;
-
-              const next = prev.map((message, i) =>
-                i === index ? updater(message) : message,
-              );
-
-              return next;
-            });
-          });
-        };
-
         try {
           await streamAI(
             `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/ai/zeyrix/stream`,
@@ -383,79 +719,114 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
               locale: locale,
               timezone: timezone,
             },
-            (event) => handleStreamEvent(event, updateLastAssistantMessage),
-            controller.signal,
+            (event) => {
+              receivedStreamEvent = true;
+              if (event.type === "done" || event.type === "error") {
+                receivedTerminalEvent = true;
+              }
+              handleStreamEvent(event, updateLastAssistantMessage);
+            },
+            userAbort.signal,
           );
         } catch (error) {
-          if (error instanceof DOMException && error.name === "AbortError") {
-            setMessages((prev) =>
+          if (isAbortError(error) && userAbort.signal.aborted) {
+            updateChatStreamMessages(targetChatId, (prev) =>
               prev.map((message, index) => {
                 if (
                   index === prev.findLastIndex((m) => m.role === "assistant")
                 ) {
-                  return {
-                    ...message,
-                    status: "cancelled",
-                  };
+                  return { ...message, status: "cancelled" };
                 }
-
                 return message;
               }),
             );
-
             return;
           }
 
-          if (error instanceof Error) {
-            const data = JSON.parse(error.message)
-            
-            if (data.code === "INVITE_REQUIRED") {
-              setModalState(data.detail);
+          const apiError = parseApiError(error);
+
+          if (apiError.code === "INVITE_REQUIRED") {
+            setModalState(apiError.detail ?? null);
+          }
+
+          // Only hand off if the assistant is still pending locally.
+          // Stream close after a successful run often throws STREAM_ERROR even
+          // when `done` was applied — never resubscribe in that case.
+          {
+            const live = getStreamMessages(targetChatId);
+            const lastAsst = live?.findLast((m) => m.role === "assistant");
+            const stillPending = lastAsst?.status === "pending";
+            if (
+              stillPending &&
+              !receivedTerminalEvent &&
+              (receivedStreamEvent || apiError.code === "STREAM_ERROR")
+            ) {
+              handoffToBackendTask = true;
+              return;
             }
           }
 
-          setMessages((prev) => {
-            const messages = [...prev];
-
-            const lastAgentIndex = messages.findLastIndex(
-              (message) => message.role === "assistant"
+          updateChatStreamMessages(targetChatId, (prev) => {
+            const next = [...prev];
+            const lastAgentIndex = next.findLastIndex(
+              (message) => message.role === "assistant",
             );
-
             if (lastAgentIndex !== -1) {
-              messages.splice(lastAgentIndex, 1);
+              next.splice(lastAgentIndex, 1);
             }
 
-            const lastUserIndex = messages.findLastIndex(
-              (message) => message.role === "user"
+            const lastUserIndex = next.findLastIndex(
+              (message) => message.role === "user",
             );
-
             if (lastUserIndex !== -1) {
-              messages[lastUserIndex] = {
-                ...messages[lastUserIndex],
+              next[lastUserIndex] = {
+                ...next[lastUserIndex],
                 status: "error",
                 notSent: true,
                 retrySendMessage: retrySendMessage,
               };
             }
 
-            return messages;
+            return next;
           });
-
-          throw error;
         }
       } finally {
-        if (targetChatId) {
-          clearOptimisticMessages(targetChatId);
+        const finalMessages = getStreamMessages(targetChatId);
+        if (finalMessages) {
+          setOptimisticMessages(targetChatId, finalMessages);
+          if (previousChatIdRef.current === targetChatId) {
+            setMessages(finalMessages);
+          }
         }
-        
-        if (abortControllerRef.current === controller) {
-          abortControllerRef.current = null;
-        }
+        endChatStream(targetChatId);
 
-        setSending(false);
+        const lastAssistant = finalMessages?.findLast(
+          (m) => m.role === "assistant",
+        );
+        // Terminal statuses mean the run finished (or paused on approval).
+        // Force isTaskRunning=false so we never resubscribe to a finished task.
+        const finishedLocally =
+          lastAssistant != null &&
+          (lastAssistant.status === "completed" ||
+            lastAssistant.status === "approval_required" ||
+            lastAssistant.status === "error" ||
+            lastAssistant.status === "cancelled");
+
+        if (handoffToBackendTask && !finishedLocally && !receivedTerminalEvent) {
+          notifyTaskRunning(targetChatId, true);
+          void import("../lib/chatTaskStream").then(({ subscribeToChatTask }) =>
+            subscribeToChatTask(targetChatId, "chat", {
+              onEnded: (id) => notifyTaskRunning(id, false),
+            }),
+          );
+        } else {
+          // Clear isTaskRunning so load/visibility won't call
+          // subscribe_to_task for an already-finished generation.
+          notifyTaskRunning(targetChatId, false);
+        }
       }
     },
-    [chatId],
+    [chatId, locale, timezone, setModalState],
   );
 
   async function retrySendMessage(id: string, prompt: string, attachments: Attachment[], deleteFromLocal: boolean = true) {
@@ -474,121 +845,188 @@ export function useChat(setModalState: Dispatch<SetStateAction<AccessInfoModalSt
     }
   }
 
-  const applyToolUse = useCallback(async (requestId: string, action: "confirm" | "reject") => {
-      setSending(true);
+  const applyToolUse = useCallback(
+    async (requestId: string, action: "confirm" | "reject") => {
+      const targetChatId = previousChatIdRef.current;
+      if (!targetChatId || isChatStreaming(targetChatId)) return;
+
       setError(null);
 
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
+      const userAbort = new AbortController();
+      const base = messagesRef.current;
 
-      try {
-        const updateApproveRequiredMessage = (
-          updater: (message: Message) => Message,
-        ) => {
-          flushSync(() => {
-            setMessages((prev) => {
-              const index = prev.findLastIndex(
-                (message) =>
-                  message.role === "assistant" &&
-                  (message.status === "approval_required" ||
-                    message.status === "pending"),
-              );
-              if (index === -1) return prev;
-              return prev.map((message, i) =>
-                i === index ? updater(message) : message,
-              );
-            });
-          });
-        };
-
-        updateApproveRequiredMessage((message) => ({
-          ...message,
-          status: "pending",
-        }))
-
-        await streamAI(
-          `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/ai/apply_tool`,
-          { 
-            requestId: requestId,
-            action: action,
-            locale: locale,
-            timezone: timezone,
-          },
-          (event) => handleStreamEvent(event, updateApproveRequiredMessage),
-          controller.signal,
+      const withPending = (() => {
+        const index = base.findLastIndex(
+          (message) =>
+            message.role === "assistant" &&
+            (message.status === "approval_required" ||
+              message.status === "pending"),
         );
-        
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") {
-          setMessages((prev) =>
-            prev.map((message, index) => {
-              if (
-                index === prev.findLastIndex((m) => m.role === "assistant")
-              ) {
-                return {
-                  ...message,
-                  status: "cancelled",
-                };
-              }
+        if (index === -1) return base;
+        return base.map((message, i) =>
+          i === index ? { ...message, status: "pending" as const } : message,
+        );
+      })();
 
-              return message;
-            }),
-          );
+      startChatStream(targetChatId, withPending, userAbort);
+      notifyTaskRunning(targetChatId, true);
+      setMessages(withPending);
 
-          return;
-        }
-
-        if (err instanceof Error) {
-          const data = JSON.parse(err.message)
-          
-          if (data.code === "INVITE_REQUIRED") {
-            setModalState(data.detail);
-          }
-        }
-
-        const error =
-          err instanceof Error
-            ? err
-            : new Error(
-                `Failed to handle the request.\nTry again in a moment.\nIf this problem will repeat, please, inform us.`,
-              );
-
-        setMessages((prev) => {
+      const updateApproveRequiredMessage = (
+        updater: (message: Message) => Message,
+      ) => {
+        updateChatStreamMessages(targetChatId, (prev) => {
           const index = prev.findLastIndex(
-            (message) => message.role === "assistant",
+            (message) =>
+              message.role === "assistant" &&
+              (message.status === "approval_required" ||
+                message.status === "pending"),
           );
-
-          if (index === -1) {
-            return prev;
-          }
-
+          if (index === -1) return prev;
           return prev.map((message, i) =>
-            i === index
-              ? {
-                  ...message,
-                  status: "error",
-                  text: error.message,
-                }
-              : message,
+            i === index ? updater(message) : message,
           );
         });
+      };
 
-        setError(error.message);
-        throw error;
-      } finally {
-        if (abortControllerRef.current === controller) {
-          abortControllerRef.current = null;
+      let receivedStreamEvent = false;
+      let receivedTerminalEvent = false;
+      let handoffToBackendTask = false;
+
+      try {
+        try {
+          await streamAI(
+            `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/ai/apply_tool`,
+            {
+              requestId: requestId,
+              action: action,
+              locale: locale,
+              timezone: timezone,
+            },
+            (event) => {
+              receivedStreamEvent = true;
+              if (event.type === "done" || event.type === "error") {
+                receivedTerminalEvent = true;
+              }
+              handleStreamEvent(event, updateApproveRequiredMessage);
+            },
+            userAbort.signal,
+          );
+        } catch (err) {
+          if (isAbortError(err) && userAbort.signal.aborted) {
+            updateChatStreamMessages(targetChatId, (prev) =>
+              prev.map((message, index) => {
+                if (
+                  index === prev.findLastIndex((m) => m.role === "assistant")
+                ) {
+                  return { ...message, status: "cancelled" };
+                }
+                return message;
+              }),
+            );
+            return;
+          }
+
+          const apiError = parseApiError(err);
+
+          if (apiError.code === "INVITE_REQUIRED") {
+            setModalState(apiError.detail ?? null);
+          }
+
+          {
+            const live = getStreamMessages(targetChatId);
+            const lastAsst = live?.findLast((m) => m.role === "assistant");
+            const stillPending = lastAsst?.status === "pending";
+            if (
+              stillPending &&
+              !receivedTerminalEvent &&
+              (receivedStreamEvent || apiError.code === "STREAM_ERROR")
+            ) {
+              handoffToBackendTask = true;
+              return;
+            }
+          }
+
+          const fallbackText =
+            apiError.code === "NETWORK_ERROR" ||
+            apiError.code === "STREAM_ERROR"
+              ? apiError.message
+              : apiError.message ||
+                `Failed to handle the request.\nTry again in a moment.\nIf this problem will repeat, please, inform us.`;
+
+          updateChatStreamMessages(targetChatId, (prev) => {
+            const index = prev.findLastIndex(
+              (message) => message.role === "assistant",
+            );
+            if (index === -1) return prev;
+
+            return prev.map((message, i) =>
+              i === index
+                ? {
+                    ...message,
+                    status: "error",
+                    text: fallbackText,
+                  }
+                : message,
+            );
+          });
+
+          setError(fallbackText);
         }
+      } finally {
+        const finalMessages = getStreamMessages(targetChatId);
+        if (finalMessages) {
+          setOptimisticMessages(targetChatId, finalMessages);
+          if (previousChatIdRef.current === targetChatId) {
+            setMessages(finalMessages);
+          }
+        }
+        endChatStream(targetChatId);
 
-        setSending(false);
+        const lastAssistant = finalMessages?.findLast(
+          (m) => m.role === "assistant",
+        );
+        const finishedLocally =
+          lastAssistant != null &&
+          (lastAssistant.status === "completed" ||
+            lastAssistant.status === "approval_required" ||
+            lastAssistant.status === "error" ||
+            lastAssistant.status === "cancelled");
+
+        if (handoffToBackendTask && !finishedLocally && !receivedTerminalEvent) {
+          notifyTaskRunning(targetChatId, true);
+          void import("../lib/chatTaskStream").then(({ subscribeToChatTask }) =>
+            subscribeToChatTask(targetChatId, "chat", {
+              onEnded: (id) => notifyTaskRunning(id, false),
+            }),
+          );
+        } else {
+          // Same as sendMessage: clear isTaskRunning
+          notifyTaskRunning(targetChatId, false);
+        }
       }
     },
-    [locale, timezone],
+    [locale, timezone, setModalState],
   );
 
   const stopGeneration = useCallback(() => {
-    abortControllerRef.current?.abort();
-  }, []);
+    if (!chatId) return;
+    void import("../lib/chatTaskStream").then(({ cancelChatTask }) =>
+      cancelChatTask(chatId, kind),
+    );
+  }, [chatId, kind]);
 
-  return { messages, loading, error, sending, sendMessage, applyToolUse, retrySendMessage, stopGeneration, setShouldMessagesLoad };
+  return {
+    messages,
+    timeline,
+    liveSessions,
+    loading,
+    error,
+    sending,
+    sendMessage,
+    applyToolUse,
+    retrySendMessage,
+    stopGeneration,
+    setShouldMessagesLoad,
+  };
 }

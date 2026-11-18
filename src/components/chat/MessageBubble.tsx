@@ -12,11 +12,12 @@ import {
   Attachment,
 } from "@/src/types/chat";
 
-import { useState, useEffect, SetStateAction } from "react";
+import { useState, useEffect, useRef, SetStateAction } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { format } from "date-fns";
 import { getDateFnsLocale } from "@/src/lib/date-fns-locale";
 import { MarkdownMessage } from "./MarkdownMessage";
+import { AssistantContent, stripFileTags } from "./AssistantContent";
 import { CopyButton } from "./Buttons";
 import { Step } from "./AgentStep";
 import { ApprovalCard } from "./ApprovalCard";
@@ -217,7 +218,7 @@ function adaptText(text: string, status: string, t: _Translator<Record<string, a
 }
 
 function formatDuration(ms: number, t: _Translator<Record<string, any>>): string {
-  const seconds = Math.round(ms / 1000);
+  const seconds = Math.max(0, Math.round(ms / 1000));
 
   if (seconds < 60) {
     return `${seconds}${t("s")}`;
@@ -229,20 +230,45 @@ function formatDuration(ms: number, t: _Translator<Record<string, any>>): string
   return `${minutes}${t("m")} ${restSeconds}${t("s")}`;
 }
 
-function useElapsedTime(startDate: string | Date): number {
-  const [elapsed, setElapsed] = useState(() => {
-    return Date.now() - new Date(startDate).getTime();
-  });
+/**
+ * Live "Working for X" duration while status === pending.
+ * Continues from accumulated processingSeconds (e.g. after approval resume)
+ * instead of resetting to 0 or counting wall-clock from createdAt.
+ */
+function useWorkingDuration(
+  status: Message["status"],
+  createdAt: string,
+  processingSeconds?: number,
+): number {
+  const phaseStartRef = useRef<number | null>(null);
+  const prevStatusRef = useRef<Message["status"] | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setElapsed(Date.now() - new Date(startDate).getTime());
-    }, 1000);
+    if (status === "pending") {
+      if (prevStatusRef.current !== "pending") {
+        phaseStartRef.current = Date.now();
+      }
+      prevStatusRef.current = status;
+      const interval = setInterval(() => setNow(Date.now()), 1000);
+      return () => clearInterval(interval);
+    }
 
-    return () => clearInterval(interval);
-  }, [startDate]);
+    phaseStartRef.current = null;
+    prevStatusRef.current = status;
+  }, [status]);
 
-  return elapsed;
+  if (status !== "pending") return 0;
+
+  const baseMs = (processingSeconds ?? 0) * 1000;
+
+  // Resumed after approval / previous phase: keep prior work time and tick further.
+  if (baseMs > 0 && phaseStartRef.current != null) {
+    return baseMs + (now - phaseStartRef.current);
+  }
+
+  // First generation: count from message creation.
+  return now - new Date(createdAt).getTime();
 }
 
 export function MessageBubble({
@@ -273,10 +299,8 @@ export function MessageBubble({
   const approvalDetails = steps?.at(-1)?.approvalDetails;
   steps = steps ? steps : [];
 
-  const elapsedTime = useElapsedTime(createdAt);
-  const workDuration = formatDuration(
-    processingSeconds ? processingSeconds : elapsedTime, t
-  );
+  const workingMs = useWorkingDuration(status, createdAt, processingSeconds);
+  const workDuration = formatDuration(workingMs, t);
   const workedFor = processingSeconds
     ? formatDuration(processingSeconds * 1000, t)
     : "-";
@@ -356,19 +380,17 @@ export function MessageBubble({
               </div>
             </div>
 
-            {text && <MarkdownMessage text={adaptedText} />}
-
-            {attachments && attachments.length > 0 && (
-              <div className="flex max-w-full gap-2 overflow-x-auto pb-1 scrollbar-thin overflow-y-hidden">
-                {attachments.map((attachment) => (
-                  <MessageAttachment key={attachment.fileId} {...attachment} />
-                ))}
-              </div>
+            {(text || (attachments && attachments.length > 0)) && (
+              <AssistantContent
+                text={adaptedText}
+                attachments={attachments}
+                streaming={status === "pending"}
+              />
             )}
 
             {status === "completed" && (
               <div className="flex flex-row items-center">
-                <CopyButton content={adaptedText} />
+                <CopyButton content={stripFileTags(adaptedText)} />
                 <button className="p-2 rounded-lg hover:bg-elevated hover:cursor-pointer">
                   <LikeIcon className="text-foreground size-4" />
                 </button>

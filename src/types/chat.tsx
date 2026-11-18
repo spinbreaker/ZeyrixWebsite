@@ -1,19 +1,27 @@
 import { SetStateAction } from "react";
 
-export type StepStatus = "in_progress" | "done" | "error" | "awaiting_approval" | "denied" | "expired" | "forbidden"
-export type StepKind = "tool_call" | "reasoning"
+export type StepStatus =
+  | "in_progress"
+  | "done"
+  | "error"
+  | "awaiting_approval"
+  | "denied"
+  | "expired"
+  | "forbidden"
+  | "cancelled";
+export type StepKind = "tool_call" | "reasoning" | "file_transcribe";
 
 export type ToolDetails = {
   auditLogId?: string;
   tableName?: string;
   rowsAffected?: number;
   arguments?: string;
-}
+};
 
 export type FailedGeneration = {
   name?: string;
   arguments?: string;
-}
+};
 
 export interface AgentStep {
   id: string;
@@ -29,8 +37,25 @@ export interface AgentStep {
 }
 
 export type StreamEvent =
-  | { type: "step_start"; id: string; kind: StepKind; label: string; status: StepStatus; toolName?: string; approvalDetails?: ApprovalDetails; toolDetails?: ToolDetails; failedGeneration?: FailedGeneration }
-  | { type: "step_update"; id: string; status: StepStatus; approvalDetails?: ApprovalDetails; toolDetails?: ToolDetails; failedGeneration?: FailedGeneration }
+  | {
+      type: "step_start";
+      id: string;
+      kind: StepKind;
+      label: string;
+      status: StepStatus;
+      toolName?: string;
+      approvalDetails?: ApprovalDetails;
+      toolDetails?: ToolDetails;
+      failedGeneration?: FailedGeneration;
+    }
+  | {
+      type: "step_update";
+      id: string;
+      status: StepStatus;
+      approvalDetails?: ApprovalDetails;
+      toolDetails?: ToolDetails;
+      failedGeneration?: FailedGeneration;
+    }
   | { type: "text_delta"; delta: string }
   | {
       type: "done";
@@ -52,13 +77,18 @@ export type ApprovalDetails = {
   reversible: boolean;
   paramsPreview: any;
   status:
-    "pending" | "approved" | "rejected" | "expired" | "executed" | "failed";
+    | "pending"
+    | "approved"
+    | "rejected"
+    | "expired"
+    | "executed"
+    | "failed";
   appliedAt: string | null;
 };
 
 export type Message = {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "live_agent";
   status: "completed" | "pending" | "error" | "approval_required" | "cancelled";
   text: string;
   attachments?: Attachment[];
@@ -67,6 +97,8 @@ export type Message = {
   steps?: AgentStep[];
   streamingReasoning?: string;
   notSent?: boolean;
+  /** Present when loaded from ConversationObjectUnion */
+  kind?: "message";
   applyToolUse: (
     requestId: string,
     action: "confirm" | "reject",
@@ -80,41 +112,76 @@ export type Message = {
   setShouldScroll?: (value: SetStateAction<boolean>) => void;
 };
 
+export type LiveSessionStatus =
+  | "active"
+  | "ended"
+  | "error"
+  | "interrupted"
+  | "cancelled";
+
+export type LiveSessionTranscriptionRole = "user" | "agent";
+
+export type LiveSessionTranscription = {
+  role: LiveSessionTranscriptionRole;
+  text: string;
+};
+
+/** Live voice session card in the conversation timeline */
+export type LiveSessionObject = {
+  id: string;
+  kind: "live_session";
+  status: LiveSessionStatus;
+  /** Internal live-agent ↔ main-agent dialogue (same shape as messages) */
+  conversation: Message[];
+  /** User ↔ live-agent speech transcript */
+  transcription: LiveSessionTranscription[];
+  durationSeconds: number;
+  createdAt: string;
+};
+
+export type ConversationObjectUnion = (Message & { kind?: "message" }) | LiveSessionObject;
+
+export type TimelineItem = ConversationObjectUnion;
+
 export type Attachment = {
   fileId: string;
   filename: string;
   mimeType: string;
   size: number;
+  generated?: boolean;
 };
 
 export type GeneratedFile = {
   type: "document" | "image";
   id: string;
-  accessToken: string;
   mimeType: string;
   filename: string;
   sizeBytes: number;
 };
 
-export type ApiChat = {
+/** Unified conversation item (chat or scheduled task) */
+export type ConversationKind = "chat" | "task";
+
+export type ScheduleType = "once" | "recurring";
+
+export type Conversation = {
   id: string;
   title: string;
-  updated_at: string;
-};
-
-export type Chat = {
-  id: string;
-  name: string;
   updatedAt: string;
+  isTaskRunning: boolean;
+  /** Present for scheduled tasks */
+  scheduleType?: ScheduleType;
+  /** UTC ISO datetime of the next planned run (scheduled tasks) */
+  nextRunAt?: string | null;
 };
 
-export function mapChat(chat: ApiChat): Chat {
-  return {
-    id: chat.id,
-    name: chat.title,
-    updatedAt: chat.updated_at,
-  };
-}
+/** @deprecated Use Conversation */
+export type Chat = Conversation;
+
+export type ChatsAndScheduledTasks = {
+  chats: Conversation[];
+  tasks: Conversation[];
+};
 
 export interface PendingAttachment {
   localId: string;
@@ -143,8 +210,14 @@ export function mapAttachments(attachment: PendingAttachment): Attachment {
 }
 
 export type AccessInvite = {
-  status: "pending" | "activated" | "expired" | "exhausted" | "revoked" | "notFound";
+  status:
+    | "pending"
+    | "activated"
+    | "expired"
+    | "exhausted"
+    | "revoked"
+    | "notFound";
   activationExpiresAt?: string;
   activatedAt?: string;
   accessExpiresAt?: string;
-}
+};
