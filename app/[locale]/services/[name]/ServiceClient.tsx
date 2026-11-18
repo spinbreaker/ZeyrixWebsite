@@ -1,8 +1,8 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { HeaderMobile } from "@/src/components/header/mobile";
-import { FooterMobile } from "@/src/components/footer/mobile";
+import { Header } from "@/src/components/header/main";
+import { Footer } from "@/src/components/footer/main";
 import { OpenAgentButton } from "@/src/components/reusable/buttons";
 import { ServiceHero } from "@/src/components/services/single/hero";
 import { ServiceOverview } from "@/src/components/services/single/overview";
@@ -25,16 +25,16 @@ export default function ServiceClient() {
 
   return (
     <div className="mt-14">
-      <HeaderMobile />
-      <ServiceHero />
-      <ServiceOverview />
-      <ServiceProcess />
-      <ServiceTech />
-      <ServiceRelatedCases />
-      <ServiceFAQ />
-      <ServiceCTA />
+      <Header />
+      <ServiceHero service={currentService} />
+      <ServiceOverview service={currentService} />
+      <ServiceProcess service={currentService} />
+      <ServiceTech service={currentService} />
+      <ServiceRelatedCases service={currentService} />
+      <ServiceFAQ service={currentService} />
+      <ServiceCTA service={currentService} />
       <OpenAgentButton />
-      <FooterMobile />
+      <Footer />
     </div>
   );
 }
